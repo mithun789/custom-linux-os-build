@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "buildroot-remote": {
+      "command": "ssh",
+      "args": [
+        "buildhost",
+        "python3 ~/mcp-servers/buildroot_mcp.py"
+      ]
+    },
+    "build-remote": {
+      "command": "ssh",
+      "args": [
+        "buildhost",
+        "python3 ~/mcp-servers/build_mcp.py"
+      ]
+    },
+    "testing-remote": {
+      "command": "ssh",
+      "args": [
+        "buildhost",
+        "python3 ~/mcp-servers/testing_mcp.py"
+      ]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+# SSH Configuration Template
+# Save as: ~/.ssh/config (on Mac/Linux) or %APPDATA%\.ssh\config (on Windows)
+
+Host buildhost
+    User ubuntu
+    HostName 192.168.1.100
+    IdentityFile ~/.ssh/id_rsa
+    Port 22
+    
+    # Port forwarding for MCP servers
+    LocalForward 127.0.0.1:3000 127.0.0.1:3000
+    LocalForward 127.0.0.1:3001 127.0.0.1:3001
+    LocalForward 127.0.0.1:3002 127.0.0.1:3002
+    
+    # SSH options
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    ServerAliveInterval 60
+    ServerAliveCountMax 10
+    ControlMaster auto
+    ControlPath ~/.ssh/control-%h-%p-%r
+    ControlPersist 600
+
+# NOTES:
+# 1. Replace 192.168.1.100 with your old laptop's actual IP address
+#    Find IP on old laptop with: ip addr show | grep inet
+#
+# 2. Change User from "ubuntu" if your Linux username is different
+#
+# 3. Update IdentityFile path if SSH key location is different
+#
+# 4. LocalForward creates SSH tunnels for MCP server communication
+#    Port 3000: Buildroot MCP
+#    Port 3001: Build MCP
+#    Port 3002: Testing MCP
