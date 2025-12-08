@@ -1,0 +1,2 @@
+Makefile.legacy:9: *** "You have legacy configuration in your .config! Please check your configuration.".  Stop.
+make: *** [Makefile:83: _all] Error 2
