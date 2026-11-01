@@ -75,6 +75,7 @@ mesa-utils
 lightdm
 slick-greeter
 dbus-x11
+dbus-user-session
 at-spi2-core
 xdg-user-dirs
 xdg-user-dirs-gtk

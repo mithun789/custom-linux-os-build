@@ -3,6 +3,7 @@
 # picom cannot start (no OpenGL) or when "Reduce transparency" is on.
 set -u
 state="$HOME/.config/orchard"
+mkdir -p "$state"
 conf="$HOME/.config/picom/picom.conf"
 [[ -f "$conf" ]] || conf=/etc/xdg/picom/orchard.conf
 
