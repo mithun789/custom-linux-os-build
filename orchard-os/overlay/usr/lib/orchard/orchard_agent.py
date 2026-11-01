@@ -91,6 +91,9 @@ You act on the user's computer through tools. Work like a careful senior enginee
 - For facts that may be recent, use web_search and fetch_url, and cite the URLs you used.
 - Use sudo only when needed. Explain risky steps before doing them.
 - If a tool fails, read the error, adjust and retry; stop after 3 failed attempts and explain.
+- Call one tool at a time and wait for its result before the next step.
+- write_file writes text exactly as given; it does not run shell syntax such as $(...). Put the real values you got from earlier tool results into the content.
+- Do not say a task is done until you have checked it (for example, read back the file you wrote or rerun the test).
 - Keep answers short and concrete. Show commands you ran when useful.
 Current directory: {cwd}. User: {user}. Date: {date}."""
 
@@ -359,6 +362,10 @@ class Tools:
 
     def t_write_file(self, path, content):
         p = Path(path).expanduser()
+        script = p.suffix in (".sh", ".bash", ".zsh", ".py", ".mk", ".service", ".desktop") or p.name in ("Makefile", "Dockerfile")
+        if not script and re.fullmatch(r"\s*(\$\([^)]*\)|`[^`]*`)\s*", content):
+            return {"error": "write_file writes text literally and does not run commands. Run the command "
+                             "with run_command first, then write its actual output."}
         preview = textwrap.shorten(content.replace("\n", " | "), 300)
         if not self._approve_write(p, f"({len(content)} chars) {preview}"):
             log_event("denied", tool="write_file", path=str(p))
@@ -475,8 +482,15 @@ def make_approver(gui):
 FENCE = re.compile(r"```(?:bash|sh|shell)\n(.*?)```", re.S)
 
 
+VERIFY_PROMPT = ("Before you finish: check with tools that every part of the request is really done "
+                 "(for example read back files you wrote, check command results). Fix anything missing. "
+                 "Then give your final answer.")
+
+
 def agent_turn(client, tools, messages, use_tools, max_steps=25, quiet=False):
     """Run the model until it answers without tool calls. Returns the final text."""
+    used_tools = False
+    verified = False
     for _ in range(max_steps):
         try:
             msg = client.chat(messages, TOOLS if use_tools[0] else None)
@@ -493,6 +507,7 @@ def agent_turn(client, tools, messages, use_tools, max_steps=25, quiet=False):
         content = msg.get("content") or ""
         messages.append({k: v for k, v in msg.items() if k in ("role", "content", "tool_calls")})
         if calls:
+            used_tools = True
             if content.strip() and not quiet:
                 print(c("2", content.strip()))
             for call in calls:
@@ -523,6 +538,11 @@ def agent_turn(client, tools, messages, use_tools, max_steps=25, quiet=False):
                 res = tools.call("run_command", {"command": m.group(1).strip()})
                 messages.append({"role": "user", "content": "Command output:\n" + json.dumps(res)[:12000]})
                 continue
+        if used_tools and not verified and use_tools[0]:
+            # One self-check round: small local models often stop early.
+            verified = True
+            messages.append({"role": "user", "content": VERIFY_PROMPT})
+            continue
         return content
     return "(stopped after too many steps)"
 
