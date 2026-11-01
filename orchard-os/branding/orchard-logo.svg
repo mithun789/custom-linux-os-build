@@ -1,24 +1,60 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <defs>
     <linearGradient id="fruit" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#C6F07A"/>
-      <stop offset="0.55" stop-color="#5FCB8A"/>
-      <stop offset="1" stop-color="#1E9E8F"/>
+      <stop offset="0" stop-color="#FFE27A"/>
+      <stop offset="0.55" stop-color="#FFB938"/>
+      <stop offset="1" stop-color="#E8872A"/>
     </linearGradient>
-    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
-      <stop offset="0" stop-color="#2E8B57"/>
+    <linearGradient id="leafA" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#1E9E6A"/>
       <stop offset="1" stop-color="#7EDC6B"/>
     </linearGradient>
-    <radialGradient id="shine" cx="0.35" cy="0.35" r="0.5">
+    <linearGradient id="leafB" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#178A5C"/>
+      <stop offset="1" stop-color="#4FC48A"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0.35" cy="0.3" r="0.55">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
       <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
     </radialGradient>
+    <clipPath id="body">
+      <ellipse cx="128" cy="166" rx="58" ry="74"/>
+    </clipPath>
   </defs>
-  <!-- fruit body: two overlapping circles form a soft pear-like silhouette -->
-  <path d="M128 62c-22 0-36 16-36 38 0 10 3 18 3 26-14 10-27 27-27 50 0 36 27 58 60 58s60-22 60-58c0-23-13-40-27-50 0-8 3-16 3-26 0-22-14-38-36-38z" fill="url(#fruit)"/>
-  <path d="M128 62c-22 0-36 16-36 38 0 10 3 18 3 26-14 10-27 27-27 50 0 36 27 58 60 58s60-22 60-58c0-23-13-40-27-50 0-8 3-16 3-26 0-22-14-38-36-38z" fill="url(#shine)"/>
-  <!-- stem -->
-  <path d="M128 64c0-14 4-24 12-32" stroke="#5B4636" stroke-width="7" stroke-linecap="round" fill="none"/>
-  <!-- leaf -->
-  <path d="M138 40c14-18 40-20 56-12-6 20-30 32-56 12z" fill="url(#leaf)"/>
+
+  <!-- crown: back leaves, then front leaves -->
+  <path d="M128 100 C 104 82 84 50 82 24 C 104 38 120 62 128 92 Z" fill="url(#leafB)"/>
+  <path d="M128 100 C 152 82 172 50 174 24 C 152 38 136 62 128 92 Z" fill="url(#leafB)"/>
+  <path d="M128 102 C 96 96 70 80 56 58 C 84 60 110 76 128 96 Z" fill="url(#leafA)"/>
+  <path d="M128 102 C 160 96 186 80 200 58 C 172 60 146 76 128 96 Z" fill="url(#leafA)"/>
+  <path d="M128 98 C 116 74 114 40 128 8 C 142 40 140 74 128 98 Z" fill="url(#leafA)"/>
+
+  <!-- body -->
+  <ellipse cx="128" cy="166" rx="58" ry="74" fill="url(#fruit)"/>
+
+  <!-- diamond pattern -->
+  <g clip-path="url(#body)" stroke="#C9701E" stroke-opacity="0.55" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M40 120 L 150 250"/>
+    <path d="M40 80  L 190 256"/>
+    <path d="M60 64  L 220 252"/>
+    <path d="M100 70 L 230 222"/>
+    <path d="M140 76 L 230 182"/>
+    <path d="M216 120 L 106 250"/>
+    <path d="M216 80  L 66 256"/>
+    <path d="M196 64  L 36 252"/>
+    <path d="M156 70  L 26 222"/>
+    <path d="M116 76  L 26 182"/>
+  </g>
+  <g clip-path="url(#body)" fill="#FFF3C4" fill-opacity="0.75">
+    <circle cx="128" cy="120" r="3.5"/>
+    <circle cx="104" cy="148" r="3.5"/>
+    <circle cx="152" cy="148" r="3.5"/>
+    <circle cx="128" cy="176" r="3.5"/>
+    <circle cx="80" cy="176" r="3.5"/>
+    <circle cx="176" cy="176" r="3.5"/>
+    <circle cx="104" cy="204" r="3.5"/>
+    <circle cx="152" cy="204" r="3.5"/>
+    <circle cx="128" cy="232" r="3.5"/>
+  </g>
+  <ellipse cx="128" cy="166" rx="58" ry="74" fill="url(#shine)"/>
 </svg>
