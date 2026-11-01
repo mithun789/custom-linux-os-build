@@ -204,6 +204,10 @@ def test_live_and_install(iso, work, out, do_install):
         }
         for name, cmd in checks.items():
             record(name, vm.run(cmd) == 0)
+        # Diagnostics for the desktop compositor.
+        vm.run("cat ~/.config/orchard/picom.log; pgrep -a -f orchard-compositor; "
+               "DISPLAY=:0 XAUTHORITY=/home/orchard/.Xauthority xfconf-query -c xfwm4 -p /general/use_compositing; "
+               "glxinfo -B 2>&1 | head -5")
 
         # Dark appearance switch inside the running session.
         env = "DISPLAY=:0 XAUTHORITY=/home/orchard/.Xauthority DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus"

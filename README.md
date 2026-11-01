@@ -2,7 +2,12 @@
 
 A macOS-styled, AI-ready Linux desktop you can install on any PC. Built on Ubuntu 24.04 LTS.
 
-![Orchard OS desktop](docs/screenshots/live-desktop.png)
+| Light | Dark |
+|---|---|
+| ![Orchard OS light desktop](docs/screenshots/live-desktop.png) | ![Orchard OS dark desktop](docs/screenshots/live-desktop-dark.png) |
+| ![Installer](docs/screenshots/installer.png) | ![Login screen](docs/screenshots/login.png) |
+
+Screenshots come from the automated QEMU test run.
 
 ## What you get
 
