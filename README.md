@@ -2,10 +2,10 @@
 
 A macOS-styled, AI-ready Linux desktop you can install on any PC. Built on Ubuntu 24.04 LTS.
 
-| Light | Dark |
+| Light: Files with the global menu bar | Dark: VS Code |
 |---|---|
-| ![Orchard OS light desktop](docs/screenshots/live-desktop.png) | ![Orchard OS dark desktop](docs/screenshots/live-desktop-dark.png) |
-| ![Installer](docs/screenshots/installer.png) | ![Login screen](docs/screenshots/login.png) |
+| ![Files in Light mode with app menus in the menu bar](docs/screenshots/light-files.png) | ![VS Code in Dark mode with the Dock](docs/screenshots/dark-vscode.png) |
+| ![Launchpad](docs/screenshots/launchpad.png) | ![Installer summary](docs/screenshots/installer.png) |
 
 Screenshots come from the automated QEMU test run.
 
@@ -62,10 +62,10 @@ Screenshots come from the automated QEMU test run.
 
 ## Install
 
-1. Download `orchard-os-1.0-amd64.iso` from [Releases](https://github.com/mithun789/custom-linux-os-build/releases), or build it (below).
+1. Download `orchard-os-1.1-amd64.iso` from [Releases](https://github.com/mithun789/custom-linux-os-build/releases), or build it (below).
 2. Write it to a USB stick (4 GB or larger) with balenaEtcher, Rufus (DD mode), or:
    ```bash
-   sudo dd if=orchard-os-1.0-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+   sudo dd if=orchard-os-1.1-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
    ```
 3. Boot from the USB stick. Pick **Try or Install Orchard OS**.
 4. Click **Install Orchard OS** in the Dock or the Welcome window and follow the steps.

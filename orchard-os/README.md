@@ -46,7 +46,7 @@ sudo apt-get install -y qemu-system-x86 qemu-utils ovmf python3-pexpect
 ```
 
 ```bash
-sudo python3 test/qemu-test.py out/orchard-os-1.0-amd64.iso --out test-results
+sudo python3 test/qemu-test.py out/orchard-os-1.1-amd64.iso --out test-results
 ```
 
 The test boots the ISO on BIOS and UEFI, logs in to the live session over the serial console, checks that the desktop, dock and installer start, installs to a virtual disk with `orchard-install`, then boots the installed disk on BIOS and UEFI. Screenshots go to `test-results/`. It uses KVM when `/dev/kvm` exists and falls back to software emulation (about 4x slower).
