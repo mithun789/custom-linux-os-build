@@ -2,6 +2,7 @@
 # Orchard AI: private, local AI models powered by Ollama.
 #
 #   orchard-ai setup              install the Ollama runtime (needs internet, sets up NVIDIA/AMD GPU)
+#   orchard-ai repair             reinstall a broken Ollama runtime, keeping models
 #   orchard-ai models             list recommended and installed models
 #   orchard-ai recommend          pick a model that fits this PC (RAM / GPU)
 #   orchard-ai pull hf.co/USER/REPO[:QUANT]   any GGUF model from Hugging Face
@@ -45,6 +46,7 @@ default_model() { cat "$CONF" 2>/dev/null || echo "qwen3:4b"; }
 server_up() { curl -fsS "$API/api/version" >/dev/null 2>&1; }
 ensure_server() {
     have_ollama || die "Ollama is not installed. Run: orchard-ai setup"
+    ollama_ok || die "the Ollama installation is incomplete (engine missing). Run: orchard-ai repair"
     server_up && return 0
     if systemctl list-unit-files ollama.service >/dev/null 2>&1; then
         sudo systemctl start ollama 2>/dev/null || true
@@ -56,18 +58,39 @@ ensure_server() {
     die "could not start the Ollama server"
 }
 
+ollama_ok() {
+    # The runtime is complete when the binary runs and its engine is present.
+    command -v ollama >/dev/null 2>&1 && ollama --version >/dev/null 2>&1 || return 1
+    local lib
+    for lib in /usr/local/lib/ollama /usr/lib/ollama; do
+        [[ -d "$lib" ]] && find "$lib" -maxdepth 3 \( -name 'llama-server*' -o -name 'libggml*' \) | grep -q . && return 0
+    done
+    return 1
+}
+
+live_warning() {
+    if grep -q 'boot=casper' /proc/cmdline 2>/dev/null; then
+        local free_gb
+        free_gb=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
+        echo "NOTE: you are in the live session. Downloads are kept in RAM (${free_gb} GB free)"
+        echo "      and are lost when you restart. Install Orchard OS to keep AI models."
+    fi
+}
+
 cmd_setup() {
-    if have_ollama; then echo "Ollama already installed: $(ollama --version 2>/dev/null | tail -1)"; return 0; fi
+    if ollama_ok; then echo "Ollama is installed and complete: $(ollama --version 2>/dev/null | tail -1)"; return 0; fi
     [[ $EUID -eq 0 ]] || exec sudo "$0" setup
+    live_warning
+    # Ollama ships .tar.zst archives; its installer stops without zstd.
+    command -v zstd >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y zstd
+    systemctl stop ollama 2>/dev/null || true
+    rm -rf /usr/local/lib/ollama
     echo "==> Installing Ollama (official installer, adds NVIDIA CUDA / AMD ROCm support when a GPU is found)"
-    if curl -fsSL https://ollama.com/install.sh -o /tmp/ollama-install.sh; then
-        sh /tmp/ollama-install.sh && rm -f /tmp/ollama-install.sh
-    else
-        echo "==> Installer unreachable, trying the release archive"
-        tmp="$(mktemp -d)"
-        curl -fL --progress-bar "$OLLAMA_URL" -o "$tmp/ollama.tgz"
-        tar -xzf "$tmp/ollama.tgz" -C /usr/local
-        rm -rf "$tmp"
+    if ! curl -fsSL https://ollama.com/install.sh -o /tmp/ollama-install.sh || ! sh /tmp/ollama-install.sh; then
+        echo "==> Official installer failed, installing the release archive from GitHub"
+        mkdir -p /usr/local/lib/ollama
+        curl -fL --progress-bar https://github.com/ollama/ollama/releases/latest/download/ollama-linux-amd64.tar.zst \
+            | zstd -d | tar -xf - -C /usr/local
         id ollama >/dev/null 2>&1 || useradd -r -s /bin/false -U -m -d /usr/share/ollama ollama
         cat > /etc/systemd/system/ollama.service <<'UNIT'
 [Unit]
@@ -80,21 +103,40 @@ User=ollama
 Group=ollama
 Restart=always
 RestartSec=3
-Environment="OLLAMA_HOST=127.0.0.1:11434"
 
 [Install]
 WantedBy=multi-user.target
 UNIT
-        systemctl daemon-reload
-        systemctl enable --now ollama
     fi
+    rm -f /tmp/ollama-install.sh
     # Keep the API on this computer only.
     mkdir -p /etc/systemd/system/ollama.service.d
     printf '[Service]\nEnvironment="OLLAMA_HOST=127.0.0.1:11434"\nEnvironment="OLLAMA_KEEP_ALIVE=10m"\n' \
         > /etc/systemd/system/ollama.service.d/orchard.conf
-    systemctl daemon-reload; systemctl restart ollama
-    echo "==> Done. Suggested model for this PC: $(recommend_model)"
+    if [[ -d /run/systemd/system ]]; then
+        systemctl daemon-reload
+        systemctl enable --now ollama
+        systemctl restart ollama
+    else
+        # No systemd (containers, CI): run the server directly.
+        nohup env OLLAMA_HOST=127.0.0.1:11434 ollama serve >/var/log/ollama.log 2>&1 &
+    fi
+    if ! ollama_ok; then
+        die "Ollama installed but its engine (llama-server) is missing. Check your internet connection and run: orchard-ai repair"
+    fi
+    for _ in $(seq 1 30); do server_up && break; sleep 1; done
+    server_up || die "the Ollama service did not start. See: journalctl -u ollama -n 50"
+    echo "==> Ollama $(ollama --version 2>/dev/null | tail -1) is ready."
+    echo "    Suggested model for this PC: $(recommend_model)"
     echo "    Download it with: orchard-ai pull $(recommend_model)"
+}
+
+cmd_repair() {
+    [[ $EUID -eq 0 ]] || exec sudo "$0" repair
+    echo "==> Reinstalling the Ollama runtime (your downloaded models are kept)"
+    rm -f /usr/local/bin/ollama
+    rm -rf /usr/local/lib/ollama
+    cmd_setup
 }
 
 ram_gb() { awk '/MemTotal/{printf "%d", $2/1024/1024 + 0.5}' /proc/meminfo; }
@@ -140,7 +182,7 @@ cmd_models() {
     echo "Default model: $(default_model)"
 }
 
-cmd_pull() { [[ -n "${1:-}" ]] || die "usage: orchard-ai pull MODEL"; ensure_server; ollama pull "$1"; [[ -f "$CONF" ]] || cmd_use "$1"; }
+cmd_pull() { [[ -n "${1:-}" ]] || die "usage: orchard-ai pull MODEL"; live_warning; ensure_server; ollama pull "$1"; [[ -f "$CONF" ]] || cmd_use "$1"; }
 cmd_rm() { [[ -n "${1:-}" ]] || die "usage: orchard-ai rm MODEL"; ensure_server; ollama rm "$1"; }
 cmd_use() {
     [[ -n "${1:-}" ]] || die "usage: orchard-ai use MODEL"
@@ -208,6 +250,7 @@ cmd_spotlight() {
 sub="${1:-help}"; shift || true
 case "$sub" in
     setup) cmd_setup ;;
+    repair) cmd_repair ;;
     models|list) cmd_models ;;
     pull|download) cmd_pull "$@" ;;
     rm|delete) cmd_rm "$@" ;;
@@ -220,6 +263,6 @@ case "$sub" in
     bench) cmd_bench "$@" ;;
     agent) exec orchard-agent "$@" ;;
     spotlight) cmd_spotlight ;;
-    help|-h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
+    help|-h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
     *) cmd_ask "$sub" "$@" ;;
 esac

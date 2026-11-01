@@ -158,6 +158,10 @@ update-notifier
 
 # --- Installer ---
 calamares
+qml-module-qtqml
+qml-module-qtquick2
+qml-module-qtquick-window2
+qml-module-qtquick-controls2
 squashfs-tools
 dosfstools
 mtools
@@ -170,6 +174,7 @@ ntfs-3g
 exfatprogs
 
 # --- Orchard tools runtime ---
+zstd
 python3
 python3-gi
 gir1.2-gtk-3.0

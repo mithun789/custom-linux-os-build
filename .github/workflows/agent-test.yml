@@ -2,7 +2,7 @@ name: Orchard Agent with real models
 
 on:
   push:
-    paths: ["orchard-os/overlay/usr/lib/orchard/orchard_agent.py", ".github/workflows/agent-test.yml"]
+    paths: ["orchard-os/overlay/usr/lib/orchard/orchard_agent.py", "orchard-os/overlay/usr/bin/orchard-ai", ".github/workflows/agent-test.yml"]
   workflow_dispatch:
 
 jobs:
@@ -19,14 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install and start Ollama
+      - name: Install Ollama with orchard-ai setup (the same path users run)
         run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          if ! curl -fs localhost:11434/api/version; then
-            nohup ollama serve > /tmp/ollama.log 2>&1 &
-            for i in $(seq 1 60); do curl -fs localhost:11434/api/version && break; sleep 1; done
-          fi
+          sudo apt-get install -y zstd
+          sudo bash orchard-os/overlay/usr/bin/orchard-ai setup
           curl -fsS localhost:11434/api/version
+          ls /usr/local/lib/ollama | head
 
       - name: Pull ${{ matrix.model }}
         run: ollama pull "${{ matrix.model }}"

@@ -234,6 +234,10 @@ class Client:
                 return data["choices"][0]["message"]
             except urllib.error.HTTPError as e:
                 detail = e.read().decode(errors="replace")[:500]
+                if "llama-server" in detail or "runner" in detail and "not found" in detail:
+                    raise ApiError("the local AI engine (Ollama) is incomplete. Fix it with: orchard-ai repair")
+                if e.code == 404 and self.provider == "ollama" and "not found" in detail:
+                    raise ApiError(f"model '{self.model}' is not downloaded. Get it with: orchard-ai pull {self.model}")
                 last = ApiError(f"HTTP {e.code} from {self.provider}: {detail}")
                 if e.code in (429, 500, 502, 503, 504):
                     time.sleep(2 ** attempt * 2)
