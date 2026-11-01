@@ -27,7 +27,8 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           sudo docker image prune -af || true
-          df -h /
+          sudo chmod 777 /mnt
+          df -h / /mnt
 
       - name: Install build tools
         run: |
@@ -44,6 +45,11 @@ jobs:
 
       - name: Build ISO
         run: sudo WORK=/mnt/orchard-build OUT="$PWD/out" ./orchard-os/build-iso.sh
+
+      - name: Free build space before tests
+        run: |
+          sudo rm -rf /mnt/orchard-build
+          df -h / /mnt
 
       - name: Test in QEMU
         if: github.event_name != 'workflow_dispatch' || inputs.run_tests
