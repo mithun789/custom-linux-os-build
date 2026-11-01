@@ -40,7 +40,7 @@ GUARD_ALERTS = Path("/var/log/orchard/guard-alerts.log")
 
 PROVIDERS = {
     "ollama": {"base_url": "http://127.0.0.1:11434/v1", "key_env": None,
-               "default_model": "qwen2.5:3b", "note": "Local models on this PC (orchard-ai setup)"},
+               "default_model": "qwen3:4b", "note": "Local models on this PC (orchard-ai setup)"},
     "huggingface": {"base_url": "https://router.huggingface.co/v1", "key_env": "HF_TOKEN",
                     "default_model": "Qwen/Qwen2.5-Coder-32B-Instruct",
                     "note": "Free token: huggingface.co/settings/tokens"},
@@ -498,6 +498,8 @@ def agent_turn(client, tools, messages, use_tools, max_steps=25, quiet=False):
     """Run the model until it answers without tool calls. Returns the final text."""
     used_tools = False
     verified = False
+    seen = {}
+    tool_names = {t["function"]["name"] for t in TOOLS}
     for _ in range(max_steps):
         try:
             msg = client.chat(messages, TOOLS if use_tools[0] else None)
@@ -512,6 +514,20 @@ def agent_turn(client, tools, messages, use_tools, max_steps=25, quiet=False):
             raise
         calls = msg.get("tool_calls") or []
         content = msg.get("content") or ""
+        if not calls and use_tools[0]:
+            # Some models (e.g. Llama) write the tool call as JSON text.
+            m = re.search(r"\{.*\}", content, re.S)
+            if m:
+                try:
+                    obj = json.loads(m.group(0))
+                except json.JSONDecodeError:
+                    obj = None
+                if isinstance(obj, dict) and obj.get("name") in tool_names:
+                    args = obj.get("arguments", obj.get("parameters", {}))
+                    calls = [{"id": "text-call", "type": "function", "function": {
+                        "name": obj["name"], "arguments": json.dumps(args) if not isinstance(args, str) else args}}]
+                    msg = {"role": "assistant", "content": "", "tool_calls": calls}
+                    content = ""
         messages.append({k: v for k, v in msg.items() if k in ("role", "content", "tool_calls")})
         if calls:
             used_tools = True
@@ -529,7 +545,15 @@ def agent_turn(client, tools, messages, use_tools, max_steps=25, quiet=False):
                 if not quiet:
                     shown = args.get("command") or args.get("path") or args.get("query") or args.get("url") or ""
                     print(c("36", f"● {name}") + (f" {shown}" if shown else ""))
-                result = tools.call(name, args)
+                key = name + json.dumps(args, sort_keys=True)
+                seen[key] = seen.get(key, 0) + 1
+                if seen[key] > 3:
+                    result = {"error": "You already made this exact call 3 times. Stop repeating it: "
+                                       "change your approach or give your final answer."}
+                    if seen[key] > 5:
+                        return "(stopped: the model kept repeating the same action)"
+                else:
+                    result = tools.call(name, args)
                 if not quiet and name == "run_command" and "exit_code" in result:
                     preview = (result.get("stdout") or result.get("stderr") or "").strip().splitlines()[-6:]
                     for line in preview:

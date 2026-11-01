@@ -25,11 +25,11 @@ API="${OLLAMA_HOST:-http://127.0.0.1:11434}"
 OLLAMA_URL="https://ollama.com/download/ollama-linux-amd64.tgz"
 
 # name|download|min RAM|description   (tools = works with Orchard Agent)
-RECOMMENDED="qwen3:4b|2.5 GB|8 GB|Best all-rounder for 8 GB PCs, tools, thinks step by step
+RECOMMENDED="qwen3:4b|2.5 GB|6 GB|Best all-rounder and agent default (passed the agent test)
 qwen3:1.7b|1.4 GB|4 GB|Smallest model that passed the agent test
-qwen2.5:3b|1.9 GB|6 GB|Fast assistant with reliable tool use (agent default)
+qwen2.5:3b|1.9 GB|6 GB|Fast chat (less reliable as an agent)
 qwen2.5-coder:7b|4.7 GB|12 GB|Coding specialist, tools
-llama3.2:3b|2.0 GB|6 GB|Meta Llama 3.2, tools, good chat
+llama3.2:3b|2.0 GB|6 GB|Meta Llama 3.2, good chat
 llama3.2:1b|1.3 GB|4 GB|Very fast chat on any PC (too small for the agent)
 phi4-mini|2.5 GB|8 GB|Microsoft Phi-4 mini, reasoning and tools
 gemma3:4b|3.3 GB|8 GB|Google Gemma 3, understands images
@@ -40,7 +40,7 @@ dolphin-mistral|4.1 GB|12 GB|Uncensored Mistral 7B fine-tune"
 
 die() { echo "orchard-ai: $*" >&2; exit 1; }
 have_ollama() { command -v ollama >/dev/null 2>&1; }
-default_model() { cat "$CONF" 2>/dev/null || echo "qwen2.5:3b"; }
+default_model() { cat "$CONF" 2>/dev/null || echo "qwen3:4b"; }
 
 server_up() { curl -fsS "$API/api/version" >/dev/null 2>&1; }
 ensure_server() {
@@ -104,8 +104,7 @@ recommend_model() {
     local ram vram
     ram=$(ram_gb); vram=$(vram_gb)
     if [[ ${vram:-0} -ge 10 || $ram -ge 16 ]]; then echo "qwen3:8b"
-    elif [[ ${vram:-0} -ge 6 || $ram -ge 8 ]]; then echo "qwen3:4b"
-    elif [[ $ram -ge 6 ]]; then echo "qwen2.5:3b"
+    elif [[ ${vram:-0} -ge 4 || $ram -ge 6 ]]; then echo "qwen3:4b"
     else echo "qwen3:1.7b"; fi
 }
 

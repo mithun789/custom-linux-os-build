@@ -10,10 +10,12 @@ jobs:
     # Runs Orchard Agent against real local models in Ollama.
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    # qwen3 models must pass; the others show how other families behave.
+    continue-on-error: ${{ !startsWith(matrix.model, 'qwen3') }}
     strategy:
       fail-fast: false
       matrix:
-        model: ["qwen3:1.7b", "qwen2.5:3b", "llama3.2:3b", "qwen3:4b"]
+        model: ["qwen3:1.7b", "qwen3:4b", "llama3.2:3b", "qwen2.5:3b"]
     steps:
       - uses: actions/checkout@v4
 
