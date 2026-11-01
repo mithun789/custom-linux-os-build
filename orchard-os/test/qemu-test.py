@@ -347,6 +347,7 @@ def test_gui_install(iso, work, out):
             vm.run(f"{X} xdotool key --delay 200 {k}")
 
         assert wait_log("All requirements have been checked", 600), "welcome page never became ready"
+        vm.screenshot(out / "gui-welcome.png")
         key("alt+n"); time.sleep(15 * SLOW)            # -> Location
         key("alt+n"); time.sleep(15 * SLOW)            # -> Keyboard
         key("alt+n"); time.sleep(25 * SLOW)            # -> Partitions
@@ -367,10 +368,15 @@ def test_gui_install(iso, work, out):
         vm.screenshot(out / "gui-users.png")
         key("alt+n"); time.sleep(15 * SLOW)            # -> Summary
         vm.screenshot(out / "gui-summary.png")
-        key("alt+i"); time.sleep(8 * SLOW)             # Install
-        key("alt+i")                                   # "Install now" confirmation
+        click(851, 623); time.sleep(8 * SLOW)          # Install button (bottom right)
+        vm.screenshot(out / "gui-confirm.png")
+        key("alt+i"); time.sleep(3)                    # "Install Now" in the confirmation
+        key("Return")
+        if not wait_log("Starting job", 600):
+            vm.screenshot(out / "gui-not-started.png")
+            raise AssertionError("installation did not start after pressing Install")
         done = False
-        end = time.time() + 7200 * SLOW
+        end = time.time() + 3600 * SLOW
         while time.time() < end:
             if vm.run(f"grep -qiE 'raised an exception|Installation failed' {LOG}", timeout=60) == 0:
                 break

@@ -57,7 +57,7 @@ jobs:
 
       - name: Test in QEMU
         if: github.event_name != 'workflow_dispatch' || inputs.run_tests
-        run: sudo python3 orchard-os/test/qemu-test.py out/*.iso --out test-results --work /mnt/orchard-test
+        run: sudo python3 orchard-os/test/qemu-test.py out/*.iso --tests iso-menu,live,install,installed --out test-results --work /mnt/orchard-test
 
       - name: Upload test results
         if: always()
@@ -103,3 +103,30 @@ jobs:
 
             If the ISO is split into `.part00`, `.part01` files, join them first:
             `cat orchard-os-*.iso.part* > orchard-os.iso` and check it with the `.sha256` file.
+
+  gui-install-test:
+    # Drives the graphical installer (Calamares) on the ISO built above, then
+    # boots the installed disk. Screenshots of every step are uploaded.
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: orchard-os-iso
+          path: out
+      - name: Install test tools and enable KVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils ovmf python3-pexpect xorriso imagemagick
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm || true
+      - name: Graphical install test
+        run: sudo python3 orchard-os/test/qemu-test.py out/*.iso --tests gui-install --out gui-results --work /mnt/orchard-gui
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-install-results
+          path: gui-results/
