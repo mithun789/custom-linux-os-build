@@ -17,7 +17,7 @@ if [[ -f /etc/issue.orchard ]]; then
 fi
 
 # Console login message: drop Ubuntu help, ESM and news adverts.
-for f in 10-help-text 50-motd-news 91-contract-ua-esm-status 50-landscape-sysinfo 91-release-upgrade 95-hwe-eol; do
+for f in 10-help-text 50-motd-news 90-updates-available 91-contract-ua-esm-status 50-landscape-sysinfo 91-release-upgrade 95-hwe-eol 98-fsck-at-reboot 98-reboot-required; do
     [[ -f /etc/update-motd.d/$f ]] && chmod -x /etc/update-motd.d/$f
 done
 sed -i 's/^ENABLED=.*/ENABLED=0/' /etc/default/motd-news 2>/dev/null || true
@@ -167,6 +167,18 @@ if command -v flatpak >/dev/null; then
     timeout 60 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
         || echo "[hook] Flathub not reachable at build time. Users can enable it from the Welcome app."
 fi
+
+# ---- Tidy the app menu: hide duplicates of apps Orchard OS replaces ----
+mkdir -p /usr/local/share/applications
+for f in xfce4-taskmanager org.gnome.SystemMonitor gnome-system-monitor-kde xfce4-about \
+         org.xfce.ristretto org.xfce.mousepad xfce4-web-browser xfce4-mail-reader galculator \
+         xfce4-file-manager xfce4-terminal-emulator debian-xterm debian-uxterm; do
+    src=/usr/share/applications/$f.desktop
+    [[ -f $src ]] || continue
+    { grep -v '^NoDisplay=' "$src"; } > "/usr/local/share/applications/$f.desktop"
+    sed -i '0,/^\[Desktop Entry\]/s//[Desktop Entry]\nNoDisplay=true/' "/usr/local/share/applications/$f.desktop"
+done
+update-desktop-database /usr/local/share/applications 2>/dev/null || true
 
 # ---- Services ---------------------------------------------------------------
 systemctl set-default graphical.target

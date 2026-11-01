@@ -56,6 +56,10 @@ check_tmp_exec() {
     for pid in /proc/[0-9]*; do
         exe=$(readlink "$pid/exe" 2>/dev/null) || continue
         case "$exe" in
+            # Installers and chroots mount a whole system under /tmp: not suspicious.
+            /tmp/calamares-root-*|/tmp/*/usr/*|/tmp/*/bin/*|/tmp/*/sbin/*|/tmp/*/lib/*|/var/tmp/*/usr/*) continue ;;
+        esac
+        case "$exe" in
             /tmp/*|/dev/shm/*|/var/tmp/*|*"(deleted)")
                 [[ "$exe" == *"(deleted)" && "$exe" != /tmp/* && "$exe" != /dev/shm/* ]] && continue
                 key="${pid#/proc/}:$exe"
@@ -115,7 +119,10 @@ cmd_check() {
     need_root check
     mkdir -p "$LOGDIR" "$STATE"
     touch "$ALERTS"; chmod 644 "$ALERTS"
-    check_ports; check_logins; check_tmp_exec; check_cpu_hogs; check_files; check_clamav
+    check_ports; check_logins; check_tmp_exec; check_cpu_hogs; check_clamav
+    # The live session creates its user and sudo rules at boot; watch
+    # account and service files only on an installed system.
+    grep -q 'boot=casper' /proc/cmdline || check_files
 }
 
 cmd_status() {
@@ -143,9 +150,21 @@ cmd_notify() {
     # Runs in the desktop session; shows a notification for each new alert.
     touch "$HOME/.config/orchard/.guard-seen" 2>/dev/null
     while [[ ! -f "$ALERTS" ]]; do sleep 30; done
+    # At most 3 pop-ups a minute; further alerts are summarised once.
+    local window_start=0 shown=0 held=0 now
     tail -n 0 -F "$ALERTS" 2>/dev/null | while read -r line; do
-        urg=normal; [[ "$line" == *"[HIGH]"* ]] && urg=critical
-        notify-send -u "$urg" -i security-medium "Orchard Guard" "${line#* }"
+        now=$(date +%s)
+        if (( now - window_start >= 60 )); then
+            (( held > 0 )) && notify-send -i security-medium "Orchard Guard" "$held more alerts. Open Orchard Guard to see them all."
+            window_start=$now; shown=0; held=0
+        fi
+        if (( shown < 3 )); then
+            urg=normal; [[ "$line" == *"[HIGH]"* ]] && urg=critical
+            notify-send -u "$urg" -i security-medium "Orchard Guard" "${line#* }"
+            shown=$((shown + 1))
+        else
+            held=$((held + 1))
+        fi
     done
 }
 

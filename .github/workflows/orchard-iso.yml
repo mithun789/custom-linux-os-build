@@ -82,7 +82,7 @@ jobs:
         run: |
           cd out
           iso=$(ls *.iso)
-          if [ "$(stat -c %s "$iso")" -gt 2000000000 ]; then
+          if [ "$(stat -c %s "$iso")" -gt 2147483648 ]; then
             split -b 1900M -d "$iso" "$iso.part"
             rm "$iso"
           fi

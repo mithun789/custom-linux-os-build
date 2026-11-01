@@ -38,7 +38,7 @@ if [[ "$mode" == dark ]]; then
     wall=/usr/share/backgrounds/orchard/orchard-dark.png
     plank_fill_a="40;;46;;58;;150"; plank_fill_b="32;;37;;48;;150"; plank_stroke="255;;255;;255;;40"
 else
-    gtk=WhiteSur-Light$solid; icons=WhiteSur; scheme=prefer-light
+    gtk=WhiteSur-Light$solid; icons=WhiteSur-light; scheme=prefer-light
     panel=(0.965 0.973 0.984 0.62)
     wall=/usr/share/backgrounds/orchard/orchard-light.png
     plank_fill_a="250;;251;;253;;135"; plank_fill_b="240;;243;;247;;135"; plank_stroke="255;;255;;255;;70"
@@ -62,6 +62,22 @@ if command -v gsettings >/dev/null; then
     gsettings set org.gnome.desktop.interface icon-theme "$icons" 2>/dev/null
     gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null
 fi
+
+# Glass materials and menu bar text colors (GTK3 apps read this at start).
+g3="$HOME/.config/gtk-3.0"
+mkdir -p "$g3"
+if [[ -n "$solid" ]]; then
+    printf '/* Reduce transparency is on */\n.xfce4-panel.background, .xfce4-panel.background label, .xfce4-panel.background button { color: %s; }\n' \
+        "$([[ $mode == dark ]] && echo '#f5f5f7' || echo '#1d1d1f')" > "$g3/gtk.css"
+else
+    {
+        printf '@import url("file:///usr/share/orchard/gtk/glass-%s.css");\n' "$mode"
+        # Without blur (see orchard-compositor) use the more opaque frost material.
+        [[ "$(cat "$state/material" 2>/dev/null)" == glass ]] || \
+            printf '@import url("file:///usr/share/orchard/gtk/frost-%s.css");\n' "$mode"
+    } > "$g3/gtk.css"
+fi
+(xfce4-panel -r >/dev/null 2>&1 &)
 
 # libadwaita / GTK4 apps read ~/.config/gtk-4.0.
 g4="$HOME/.config/gtk-4.0"

@@ -3,6 +3,6 @@ Type=Application
 Name=Orchard AI
 Comment=Private AI assistant running on this computer
 Exec=orchard-ai gui
-Icon=applications-science
+Icon=orchard-ai
 Categories=Utility;
 Keywords=ai;chat;llm;ollama;assistant;

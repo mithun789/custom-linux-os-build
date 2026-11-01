@@ -10,6 +10,8 @@ Tests:
   live        live session reaches the desktop (xfdesktop, plank, panel run)
   install     orchard-install writes the system to a virtual disk
   installed   installed disk boots on BIOS and UEFI to the login screen
+  gui-install graphical installer (Calamares): erase disk, create user,
+              install, then boot the installed disk and log in
 
 Usage:
   qemu-test.py ISO [--tests iso-menu,live,install,installed] [--out DIR]
@@ -198,7 +200,14 @@ def test_live_and_install(iso, work, out, do_install):
             "live-zram": "swapon --show | grep -q zram",
             "live-firewall": "sudo ufw status | grep -q 'Status: active'",
             "live-earlyoom": "systemctl is-active earlyoom",
-            "live-picom": "pgrep -x picom",
+            "live-compositor": "pgrep -x picom || DISPLAY=:0 XAUTHORITY=/home/orchard/.Xauthority xfconf-query -c xfwm4 -p /general/use_compositing | grep -q true",
+            "live-kernel-hwe": "uname -r | grep -qE '^(7|[89])\\.'",
+            "live-vscode": "test -x /usr/bin/code || { echo 'VS Code missing (vendor repo unreachable at build time?)'; false; }",
+            "live-global-menu": "ls /usr/lib/x86_64-linux-gnu/gtk-3.0/modules/ | grep -q appmenu",
+            "live-launchpad": "command -v orchard-launchpad && test -f /usr/share/icons/hicolor/scalable/apps/orchard-launchpad.svg",
+            "live-glass-css": "test -f /usr/share/orchard/gtk/glass-light.css -a -f /usr/share/orchard/gtk/frost-light.css",
+            "live-ollama-deps": "command -v zstd",
+            "live-installer-layout": "grep -q partitionLayout /etc/calamares/modules/partition.conf",
             "live-clamav": "clamscan --version",
             "live-vbox-guest": "test -e /usr/bin/VBoxClient",
         }
@@ -267,6 +276,7 @@ def test_installed(disk, work, out):
                 f"installed-{fw}-guard-timer": "systemctl is-active orchard-guard.timer",
                 f"installed-{fw}-firewall": "echo orchard123 | sudo -S ufw status | grep -q 'Status: active'",
                 f"installed-{fw}-restore": "test -x /usr/bin/timeshift -a -x /usr/bin/orchard-restore",
+                f"installed-{fw}-kernel-hwe": "uname -r | grep -qE '^(7|[89])\\.'",
             }
             for name, cmd in checks.items():
                 record(name, vm.run(cmd, timeout=180) == 0)
@@ -282,10 +292,127 @@ def test_installed(disk, work, out):
             vm.kill()
 
 
+
+GUI_USER, GUI_PASS = "tester", "Orchard-2026!x"
+
+
+def test_gui_install(iso, work, out):
+    """Drive Calamares like a person would, then boot what it installed."""
+    disk = work / "gui-disk.qcow2"
+    subprocess.run(["qemu-img", "create", "-f", "qcow2", str(disk), "25G"], check=True,
+                   stdout=subprocess.DEVNULL)
+    kernel, initrd = extract_boot_files(iso, work)
+    append = "boot=casper quiet splash console=tty0 console=ttyS0,115200n8"
+    vm = VM(work, "gui", disk=str(disk), iso=iso, kernel=kernel, initrd=initrd, append=append, mem=6144)
+    X = "DISPLAY=:0 XAUTHORITY=/home/orchard/.Xauthority"
+    LOG = "/home/orchard/.cache/calamares/session.log"
+    ok = False
+    try:
+        login(vm, "orchard", "", timeout=900)
+        for _ in range(60):
+            if vm.run("pgrep -x xfce4-panel >/dev/null && pgrep -x plank >/dev/null") == 0:
+                break
+            time.sleep(10)
+        vm.run("pkill -f orchard-welcome; true")
+        vm.run(f"(sudo -E env {X} calamares -D 6 >/tmp/cala.out 2>&1 &)")
+
+        def wait_log(pattern, timeout):
+            end = time.time() + timeout * SLOW
+            while time.time() < end:
+                if vm.run(f"grep -qE {pattern!r} {LOG}", timeout=60) == 0:
+                    return True
+                time.sleep(10)
+            return False
+
+        def win_origin():
+            vm.send(f"{X} xdotool search --name 'Installer' getwindowgeometry | sed -n 's/.*Position: \\([0-9]*\\),\\([0-9]*\\).*/GEO \\1 \\2/p'")
+            vm.child.expect(r"GEO (\d+) (\d+)", timeout=60)
+            return int(vm.child.match.group(1)), int(vm.child.match.group(2))
+
+        def click(rx, ry):
+            ox, oy = win_origin()
+            vm.run(f"{X} xdotool mousemove {ox + rx} {oy + ry} click 1")
+
+        def key(k):
+            vm.run(f"{X} xdotool key --delay 200 {k}")
+
+        assert wait_log("All requirements have been checked", 600), "welcome page never became ready"
+        key("alt+n"); time.sleep(15 * SLOW)            # -> Location
+        key("alt+n"); time.sleep(15 * SLOW)            # -> Keyboard
+        key("alt+n"); time.sleep(25 * SLOW)            # -> Partitions
+        click(209, 207); time.sleep(3 * SLOW)          # Manual, then back to Erase so the plan is computed
+        click(209, 98); time.sleep(15 * SLOW)
+        vm.screenshot(out / "gui-partitions.png")
+        assert wait_log("CreatePartitionJob|Create new .*partition", 120), "erase-disk plan has no partitions"
+        key("alt+n"); time.sleep(15 * SLOW)            # -> Users
+        click(98, 79)
+        vm.run(f"{X} xdotool type --delay 80 'Orchard Tester'")
+        click(98, 143)
+        vm.run(f"{X} xdotool key ctrl+a BackSpace type --delay 80 {GUI_USER}")
+        click(98, 271)
+        vm.run(f"{X} xdotool type --delay 80 '{GUI_PASS}'")
+        click(305, 271)
+        vm.run(f"{X} xdotool type --delay 80 '{GUI_PASS}'")
+        time.sleep(5)
+        vm.screenshot(out / "gui-users.png")
+        key("alt+n"); time.sleep(15 * SLOW)            # -> Summary
+        vm.screenshot(out / "gui-summary.png")
+        key("alt+i"); time.sleep(8 * SLOW)             # Install
+        key("alt+i")                                   # "Install now" confirmation
+        done = False
+        end = time.time() + 7200 * SLOW
+        while time.time() < end:
+            if vm.run(f"grep -qiE 'raised an exception|Installation failed' {LOG}", timeout=60) == 0:
+                break
+            if vm.run(f"grep -q '( 30 / 30 )' {LOG} && ! pgrep -f 'rsync|unsquashfs' >/dev/null", timeout=60) == 0:
+                time.sleep(60 * SLOW)
+                done = True
+                break
+            time.sleep(30)
+        vm.screenshot(out / "gui-finished.png")
+        failed = vm.run(f"grep -qiE 'raised an exception|Installation failed' {LOG}", timeout=60) == 0
+        record("gui-install", done and not failed, "Calamares erase-disk install, 30/30 steps")
+        if not (done and not failed):
+            vm.run(f"grep -iE -B2 -A8 'exception|failed' {LOG} | tail -40", timeout=60)
+            return
+        # Let the installed system talk on the serial console for the boot test.
+        vm.run("sudo mount /dev/vda1 /mnt && for d in dev proc sys; do sudo mount --bind /$d /mnt/$d; done && "
+               "sudo sed -i 's/^GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=\"console=tty0 console=ttyS0,115200n8\"/' /mnt/etc/default/grub && "
+               "sudo chroot /mnt update-grub >/dev/null 2>&1; sudo umount -R /mnt", timeout=600)
+        vm.send("sudo poweroff")
+        time.sleep(10)
+        ok = True
+    except (pexpect.TIMEOUT, AssertionError) as exc:
+        vm.screenshot(out / "gui-timeout.png")
+        record("gui-install", False, str(exc).splitlines()[0][:120])
+    finally:
+        vm.kill()
+    if not ok:
+        return
+    vm = VM(work, "gui-installed", disk=str(disk))
+    try:
+        login(vm, GUI_USER, GUI_PASS, timeout=900)
+        record("gui-installed-boot", True, "login as the user created in Calamares")
+        checks = {
+            "gui-installed-sudo": f"echo '{GUI_PASS}' | sudo -S -v",
+            "gui-installed-fstab": "findmnt -n / && grep -q '^UUID=' /etc/fstab",
+            "gui-installed-no-casper": "! dpkg -l casper 2>/dev/null | grep -q '^ii'",
+            "gui-installed-lightdm": "systemctl is-active lightdm",
+        }
+        for name, cmd in checks.items():
+            record(name, vm.run(cmd, timeout=180) == 0)
+        time.sleep(20 * SLOW)
+        vm.screenshot(out / "gui-installed-login.png")
+    except pexpect.TIMEOUT as exc:
+        vm.screenshot(out / "gui-installed-timeout.png")
+        record("gui-installed-boot", False, f"timeout: {str(exc).splitlines()[0]}")
+    finally:
+        vm.kill()
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("iso")
-    ap.add_argument("--tests", default="iso-menu,live,install,installed")
+    ap.add_argument("--tests", default="iso-menu,live,install,installed,gui-install")
     ap.add_argument("--out", default="test-results")
     ap.add_argument("--work", default=None)
     args = ap.parse_args()
@@ -295,7 +422,10 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     work = Path(args.work or tempfile.mkdtemp(prefix="orchard-test-"))
     work.mkdir(parents=True, exist_ok=True)
-    iso = str(Path(args.iso).resolve())
+    # Work on a private copy so rebuilding the ISO cannot change it under a running VM.
+    iso_copy = work / "test.iso"
+    shutil.copy(Path(args.iso).resolve(), iso_copy)
+    iso = str(iso_copy)
     log(f"ISO {iso}  KVM={'yes' if KVM else 'no (TCG, slow)'}  work={work}")
 
     if "iso-menu" in tests:
@@ -308,6 +438,8 @@ def main():
             test_installed(disk, work, out)
         else:
             record("installed", False, "no installed disk")
+    if "gui-install" in tests:
+        test_gui_install(iso, work, out)
 
     print("\n================ Orchard OS test summary ================")
     for name, ok, detail in RESULTS:

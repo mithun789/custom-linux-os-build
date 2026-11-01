@@ -1,0 +1,44 @@
+/* Orchard Launchpad: full-screen app grid over a dimmed, blurred desktop. */
+* {
+    bg:     #10141CB0;
+    fg:     #FFFFFF;
+    fg-dim: #FFFFFFB0;
+    sel:    #FFFFFF2E;
+    background-color: transparent;
+    text-color: @fg;
+    font: "Inter 11";
+}
+window {
+    fullscreen: true;
+    background-color: @bg;
+    padding: 6% 12%;
+}
+mainbox { spacing: 36px; children: [ inputbar, listview ]; }
+inputbar {
+    width: 320px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background-color: #FFFFFF26;
+    border: 1px;
+    border-color: #FFFFFF33;
+    children: [ entry ];
+    margin: 0 35%;
+}
+entry { placeholder: "Search"; placeholder-color: @fg-dim; horizontal-align: 0.5; }
+listview {
+    columns: 7;
+    lines: 5;
+    spacing: 18px;
+    fixed-columns: true;
+    flow: horizontal;
+    scrollbar: false;
+}
+element {
+    orientation: vertical;
+    padding: 14px 6px;
+    spacing: 10px;
+    border-radius: 18px;
+}
+element selected { background-color: @sel; }
+element-icon { size: 72px; horizontal-align: 0.5; }
+element-text { horizontal-align: 0.5; vertical-align: 0.5; text-color: inherit; }

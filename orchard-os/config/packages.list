@@ -4,7 +4,8 @@
 # --- Core system ---
 ubuntu-minimal
 ubuntu-standard
-linux-generic
+# Newest supported kernel for Ubuntu 24.04 (hardware enablement series)
+linux-generic-hwe-24.04
 casper
 systemd-resolved
 sudo
@@ -73,6 +74,7 @@ xserver-xorg-video-all
 xserver-xorg-input-all
 mesa-utils
 lightdm
+accountsservice
 slick-greeter
 dbus-x11
 dbus-user-session
@@ -86,6 +88,9 @@ libpam-gnome-keyring
 light-locker
 
 # --- Desktop (XFCE, macOS-style layout) ---
+appmenu-gtk3-module
+appmenu-gtk2-module
+appmenu-registrar
 xfce4
 xfce4-goodies
 xfce4-appmenu-plugin
@@ -129,6 +134,15 @@ pavucontrol
 alsa-utils
 
 # --- Apps ---
+gnome-text-editor
+loupe
+gnome-clocks
+libreoffice-writer
+libreoffice-calc
+libreoffice-impress
+libreoffice-gtk3
+libreoffice-style-colibre
+btop
 epiphany-browser
 mousepad
 ristretto
@@ -196,7 +210,7 @@ ubuntu-drivers-common
 nvidia-prime
 virtualbox-guest-utils
 virtualbox-guest-x11
-linux-cloud-tools-generic
+linux-cloud-tools-generic-hwe-24.04
 nvtop
 fwupd
 rfkill

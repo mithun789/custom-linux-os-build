@@ -1,0 +1,3 @@
+# Packages from vendor repositories set up by build-iso.sh (skipped with a
+# warning when the vendor repository cannot be reached).
+code

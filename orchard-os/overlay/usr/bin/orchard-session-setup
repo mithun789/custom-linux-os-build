@@ -2,11 +2,18 @@
 # Per-user desktop setup. Runs at every XFCE login; first-run work is
 # done once and recorded in ~/.config/orchard/setup-version.
 set -u
-VERSION=3
+VERSION=4
 state="$HOME/.config/orchard"
 mkdir -p "$state"
 
 xdg-user-dirs-update >/dev/null 2>&1 || true
+
+# Live session: never lock the screen or blank it (installs take a while).
+if grep -q 'boot=casper' /proc/cmdline; then
+    (sleep 10; pkill -x light-locker; xset s off -dpms) &
+    xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled --create -t bool -s false 2>/dev/null
+    xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate --create -t bool -s false 2>/dev/null
+fi
 
 if [[ "$(cat "$state/setup-version" 2>/dev/null)" != "$VERSION" ]]; then
     # Give xfdesktop and xfconfd a moment to register the monitors.
@@ -26,7 +33,15 @@ if [[ "$(cat "$state/setup-version" 2>/dev/null)" != "$VERSION" ]]; then
     k '<Super>l' 'xflock4'
     k '<Primary><Shift>3' 'xfce4-screenshooter -f'
     k '<Primary><Shift>4' 'xfce4-screenshooter -r'
-    k '<Primary><Alt>Delete' xfce4-taskmanager
+    k '<Primary><Alt>Delete' gnome-system-monitor
+    k '<Primary><Shift>Escape' gnome-system-monitor
+    k 'F4' orchard-launchpad
+    k '<Super>Tab' orchard-launchpad
+
+    # App menus live in the menu bar.
+    xfconf-query -c xsettings -p /Gtk/ShellShowsMenubar --create -t bool -s true
+    xfconf-query -c xsettings -p /Gtk/ShellShowsAppmenu --create -t bool -s true
+    xfconf-query -c xsettings -p /Gtk/DialogsUseHeader --create -t bool -s true
 
     # Clean desktop: show only removable drives and trash.
     xfconf-query -c xfce4-desktop -p /desktop-icons/file-icons/show-home --create -t bool -s false

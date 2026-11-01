@@ -161,7 +161,7 @@ stage_themes() {
     rm -rf "$icons/WhiteSur-cursors"
     cp -a "$SRC/WhiteSur-cursors/dist" "$icons/WhiteSur-cursors"
     "$HERE/scripts/install-whitesur-icons.sh" "$SRC/WhiteSur-icon-theme" "$icons"
-    for d in WhiteSur WhiteSur-dark WhiteSur-cursors; do
+    for d in WhiteSur WhiteSur-dark WhiteSur-light WhiteSur-cursors; do
         in_chroot gtk-update-icon-cache -f "/usr/share/icons/$d" || true
     done
     # GTK4 / libadwaita apps follow the light/dark preference via the portal,
@@ -169,12 +169,59 @@ stage_themes() {
 }
 
 # -------------------------------------------------------------- config
+setup_vendor_repos() {
+    # Visual Studio Code from Microsoft's apt repository.
+    local key
+    if key="$(curl -fsSL --max-time 30 https://packages.microsoft.com/keys/microsoft.asc)"; then
+        mkdir -p "$CHROOT/usr/share/keyrings"
+        printf '%s\n' "$key" | gpg --dearmor --yes -o "$CHROOT/usr/share/keyrings/microsoft.gpg"
+        cat > "$CHROOT/etc/apt/sources.list.d/vscode.sources" <<'SRC'
+Types: deb
+URIs: https://packages.microsoft.com/repos/code
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/microsoft.gpg
+SRC
+        # Keep our repo entry; do not let the package add a second one.
+        echo "code code/add-microsoft-repo boolean false" | in_chroot debconf-set-selections
+        return 0
+    fi
+    echo "WARNING: packages.microsoft.com unreachable, building without VS Code" >&2
+    return 1
+}
+
 stage_config() {
     mount_chroot
+    setup_vendor_repos && VENDOR_OK=1 || VENDOR_OK=0
     log "Installing any packages added to the list since the packages stage"
-    in_chroot apt-get update
+    in_chroot apt-get update || true
     in_chroot apt-get -y install --no-install-recommends \
         $(grep -v '^\s*#' "$HERE/config/packages.list" | grep -v '^\s*$' | tr '\n' ' ')
+    if [[ $VENDOR_OK -eq 1 ]]; then
+        # BUILD_CA_BUNDLE: extra CA for networks that intercept HTTPS (build time only).
+        local apt_ca=()
+        if [[ -n "${BUILD_CA_BUNDLE:-}" && -f "$BUILD_CA_BUNDLE" ]]; then
+            cp "$BUILD_CA_BUNDLE" "$CHROOT/tmp/build-ca.crt"
+            apt_ca=(-o Acquire::https::CAInfo=/tmp/build-ca.crt)
+        fi
+        if ! { in_chroot apt-get "${apt_ca[@]}" update &&
+               in_chroot apt-get "${apt_ca[@]}" -y install --no-install-recommends \
+                   $(grep -v '^\s*#' "$HERE/config/packages-vendor.list" | grep -v '^\s*$' | tr '\n' ' '); }; then
+            echo "WARNING: vendor packages (VS Code) could not be installed; continuing without them" >&2
+        fi
+        rm -f "$CHROOT/tmp/build-ca.crt"
+    fi
+    # Keep only the newest kernel (the HWE series) in the image.
+    local newest old
+    newest="$(ls "$CHROOT/boot" | sed -n 's/^vmlinuz-//p' | sort -V | tail -1)"
+    old="$(chroot "$CHROOT" dpkg-query -W -f '${Package}\n' 'linux-image-[0-9]*' 'linux-modules-[0-9]*' \
+        'linux-modules-extra-[0-9]*' 'linux-headers-[0-9]*' 'linux-cloud-tools-[0-9]*' 'linux-tools-[0-9]*' 2>/dev/null \
+        | grep -v -- "${newest%-generic}" || true)"
+    if [[ -n "$old" ]]; then
+        in_chroot apt-get -y purge linux-generic linux-image-generic linux-headers-generic linux-cloud-tools-generic $old || true
+    fi
+    in_chroot apt-get -y autoremove --purge
     log "Generating artwork"
     local bg="$CHROOT/usr/share/backgrounds/orchard"
     mkdir -p "$bg" "$CHROOT/usr/share/pixmaps" "$CHROOT/usr/share/orchard"
@@ -187,12 +234,17 @@ stage_config() {
     mkdir -p "$CHROOT/usr/share/icons/hicolor/scalable/apps"
     cp "$HERE/branding/orchard-logo.svg" "$CHROOT/usr/share/icons/hicolor/scalable/apps/orchard-logo.svg"
     rsvg-convert -w 256 -h 256 "$HERE/branding/orchard-logo.svg" -o "$CHROOT/usr/share/pixmaps/orchard-logo.png"
+    for icon in "$HERE"/branding/icons/*.svg; do
+        cp "$icon" "$CHROOT/usr/share/icons/hicolor/scalable/apps/"
+    done
     in_chroot gtk-update-icon-cache -f /usr/share/icons/hicolor || true
 
     mkdir -p "$CHROOT/usr/share/sounds/orchard"
     python3 "$HERE/branding/make-chime.py" "$CHROOT/usr/share/sounds/orchard/login.wav"
 
     log "Copying overlay"
+    # Dock launchers are replaced as a set, so stale items from older builds go away.
+    rm -rf "${CHROOT:?}/etc/skel/.config/plank"
     cp -a "$HERE/overlay/." "$CHROOT/"
     chmod 0440 "$CHROOT/etc/sudoers.d/"* 2>/dev/null || true
     chmod +x "$CHROOT/usr/bin/orchard-"* "$CHROOT/usr/lib/orchard/"* 2>/dev/null || true
@@ -254,7 +306,7 @@ stage_squashfs() {
     printf 'casper\ncalamares\n' > "$ISODIR/casper/filesystem.manifest-remove"
 
     mksquashfs "$CHROOT" "$ISODIR/casper/filesystem.squashfs" \
-        -noappend -comp "$SQUASHFS_COMP" -b 1M -wildcards \
+        -noappend -comp "$SQUASHFS_COMP" $([[ $SQUASHFS_COMP == xz ]] && echo "-Xbcj x86 -Xdict-size 100%") -b 1M -wildcards \
         -e 'proc/*' -e 'sys/*' -e 'dev/*' -e 'run/*' -e 'tmp/*'
     du -sx --block-size=1 "$CHROOT" | cut -f1 > "$ISODIR/casper/filesystem.size"
 

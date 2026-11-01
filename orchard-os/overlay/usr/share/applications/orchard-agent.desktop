@@ -3,6 +3,6 @@ Type=Application
 Name=Orchard Agent
 Comment=AI agent that codes, runs commands and fixes your system
 Exec=xfce4-terminal -T "Orchard Agent" -x orchard-agent
-Icon=utilities-terminal
+Icon=orchard-agent
 Categories=Development;Utility;
 Keywords=ai;agent;code;assistant;claude;llm;

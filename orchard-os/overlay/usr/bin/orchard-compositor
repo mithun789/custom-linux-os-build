@@ -9,7 +9,23 @@ conf="$HOME/.config/picom/picom.conf"
 
 xfwm_comp() { xfconf-query -c xfwm4 -p /general/use_compositing --create -t bool -s "$1"; }
 
-if [[ -f "$state/reduce-transparency" ]] || ! command -v picom >/dev/null; then
+# Software OpenGL (VMs without 3D acceleration) crashes picom's OpenGL
+# backend and breaks its xrender backend; xfwm4's compositor is stable there.
+renderer="$(glxinfo -B 2>/dev/null | sed -n 's/^OpenGL renderer string: //p')"
+case "$renderer" in
+    ""|*llvmpipe*|*softpipe*|*swrast*|*"Software Rasterizer"*|*SVGA3D*) software_gl=1 ;;
+    *) software_gl=0 ;;
+esac
+echo "$(date -Is) renderer: ${renderer:-none} (software=$software_gl)" > "$state/picom.log"
+
+set_material() {  # glass (blur available) or frost; refresh styles when it changes
+    [[ "$(cat "$state/material" 2>/dev/null)" == "$1" ]] && return
+    echo "$1" > "$state/material"
+    orchard-appearance "$(cat "$state/appearance" 2>/dev/null || echo light)" >/dev/null 2>&1
+}
+
+if [[ $software_gl -eq 1 || -f "$state/reduce-transparency" ]] || ! command -v picom >/dev/null; then
+    set_material frost
     xfwm_comp true
     exit 0
 fi
@@ -21,12 +37,11 @@ if [[ -n "$old" && "$old" != "$$" ]] && kill -0 "$old" 2>/dev/null; then kill "$
 echo $$ > "$pidfile"
 mine() { [[ "$(cat "$pidfile" 2>/dev/null)" == "$$" ]]; }
 pkill -x picom 2>/dev/null
-: > "$state/picom.log"
 
 # Supervise picom: restart it when it exits. After 3 quick failures with the
 # OpenGL backend switch to xrender (no blur); after 3 more use xfwm4's
 # built-in compositor. A run longer than 2 minutes resets the counter.
-backends=(glx xrender)
+backends=(glx)
 b=0
 fails=0
 while [[ $b -lt ${#backends[@]} ]]; do
@@ -36,6 +51,7 @@ while [[ $b -lt ${#backends[@]} ]]; do
     xfwm_comp false
     sleep 1.5
     start=$(date +%s)
+    ( sleep 8; pgrep -x picom >/dev/null && set_material glass ) &
     picom --config "$conf" --backend "$backend" "${extra[@]}" >/dev/null 2>>"$state/picom.log"
     rc=$?
     ran=$(( $(date +%s) - start ))
@@ -47,4 +63,4 @@ while [[ $b -lt ${#backends[@]} ]]; do
     if [[ $fails -ge 3 ]]; then b=$((b + 1)); fails=0; fi
 done
 # No compositor could stay up (or blur was turned off): use xfwm4's built-in one.
-mine && xfwm_comp true
+mine && { set_material frost; xfwm_comp true; }

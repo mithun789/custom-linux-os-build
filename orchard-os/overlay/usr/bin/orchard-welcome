@@ -124,6 +124,10 @@ class Welcome(Gtk.Window):
              lambda: run(["xfce4-settings-manager"])),
             ("system-search-symbolic", "Spotlight", "Press Super+Space to search anything.",
              lambda: run(["orchard-spotlight"])),
+            ("view-app-grid-symbolic", "Launchpad", "All your apps in a grid. Press F4.",
+             lambda: run(["orchard-launchpad"])),
+            ("utilities-system-monitor-symbolic", "Activity Monitor", "See what is using CPU and memory.",
+             lambda: run(["gnome-system-monitor"])),
             ("input-keyboard-symbolic", "Keyboard shortcuts", "See and change shortcuts.",
              lambda: run(["xfce4-keyboard-settings"])),
         ]

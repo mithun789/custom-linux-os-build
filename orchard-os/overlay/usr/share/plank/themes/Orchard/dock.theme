@@ -1,21 +1,23 @@
-# Orchard OS Plank theme: frosted dock material (translucent fill, blurred
-# by the compositor), rounded like the macOS Dock.
+# Orchard OS Plank theme, modelled on the macOS Dock: a compact frosted
+# shelf (translucent fill, blurred by the compositor when a GPU is present),
+# rounded corners, a hairline border and small dot indicators.
+# Padding values are tenths of the icon size.
 [PlankTheme]
-TopRoundness=14
-BottomRoundness=14
+TopRoundness=18
+BottomRoundness=18
 LineWidth=1
-OuterStrokeColor=255;;255;;255;;70
-FillStartColor=250;;251;;253;;135
-FillEndColor=240;;243;;247;;135
-InnerStrokeColor=255;;255;;255;;120
+OuterStrokeColor=255;;255;;255;;110
+FillStartColor=250;;251;;253;;150
+FillEndColor=238;;241;;246;;150
+InnerStrokeColor=255;;255;;255;;60
 
 [PlankDockTheme]
-HorizPadding=6
-TopPadding=6
-BottomPadding=6
-ItemPadding=8
-IndicatorSize=4
-IconShadowSize=2
+HorizPadding=1.2
+TopPadding=1.0
+BottomPadding=1.0
+ItemPadding=2.2
+IndicatorSize=3
+IconShadowSize=1
 UrgentBounceHeight=1.6666666666666667
 LaunchBounceHeight=0.625
 FadeOpacity=1
@@ -24,11 +26,11 @@ UrgentBounceTime=600
 LaunchBounceTime=600
 ActiveTime=300
 SlideTime=300
-FadeTime=250
-HideTime=250
+FadeTime=200
+HideTime=200
 GlowSize=30
 GlowTime=10000
 GlowPulseTime=2000
 UrgentHueShift=150
-ItemMoveTime=450
+ItemMoveTime=350
 CascadeHide=true

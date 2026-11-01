@@ -52,7 +52,24 @@ cp -r "$SRC/links/status/symbolic" "$dark/status/"
     done
 )
 
-for t in "$base" "$dark"; do
+# ---- light variant: dark status icons for light panels (menu bar in Light mode)
+light="$DEST/$NAME-light"
+rm -rf "$light"
+mkdir -p "$light/status"
+cp "$SRC/src/index.theme" "$light/"
+sed -i "s/$NAME/$NAME-light/g" "$light/index.theme"
+cp -r "$SRC"/src/status/{16,22,24,32} "$light/status/"
+sed -i "s/#f2f2f2/#363636/g" "$light"/status/{16,22,24,32}/*
+cp -r "$SRC"/links/status/{16,22,24,32} "$light/status/"
+(
+    cd "$DEST"
+    for d in actions animations apps categories devices emotes emblems mimes places preferences; do
+        ln -sfn "../$NAME/$d" "$NAME-light/$d"
+    done
+    ln -sfn "../../$NAME/status/symbolic" "$NAME-light/status/symbolic"
+)
+
+for t in "$base" "$dark" "$light"; do
     (
         cd "$t"
         for d in actions animations apps categories devices emotes emblems mimes places preferences status; do
@@ -60,4 +77,4 @@ for t in "$base" "$dark"; do
         done
     )
 done
-echo "Installed $base and $dark"
+echo "Installed $base, $dark and $light"

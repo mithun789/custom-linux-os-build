@@ -1,0 +1,12 @@
+# Orchard OS desktop session environment (sourced by Xsession).
+# GTK apps draw their own title bars, so window backgrounds can be
+# translucent (glass materials) and title bars match the theme.
+export GTK_CSD=1
+# Show app menus in the top menu bar, like macOS.
+case ":${GTK_MODULES}:" in
+    *:appmenu-gtk-module:*) ;;
+    *) export GTK_MODULES="${GTK_MODULES:+$GTK_MODULES:}appmenu-gtk-module" ;;
+esac
+export UBUNTU_MENUPROXY=1
+# Qt apps follow the GTK theme.
+export QT_QPA_PLATFORMTHEME=gtk2

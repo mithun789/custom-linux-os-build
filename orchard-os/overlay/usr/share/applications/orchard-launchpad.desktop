@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Launchpad
+Comment=All your apps (F4)
+Exec=orchard-launchpad
+Icon=orchard-launchpad
+Categories=Utility;
+NoDisplay=false

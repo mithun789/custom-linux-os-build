@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Launchpad: full-screen grid of all apps (F4, or the Dock).
+pkill -x rofi && exit 0
+exec rofi -show drun -theme /usr/share/orchard/rofi/launchpad.rasi -drun-display-format "{name}" "$@"

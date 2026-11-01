@@ -12,25 +12,26 @@ Screenshots come from the automated QEMU test run.
 ## What you get
 
 **Look and feel (follows Apple's Human Interface Guidelines on materials)**
-- Translucent menu bar, Dock, Spotlight and menus with real background blur (picom, dual-kawase)
-- Rounded window corners (12 px), soft macOS-style shadows, short fade animations
-- Window buttons on the left (close, minimize, maximize), centered titles
+- Glass materials in every GTK app: title bars, toolbars and sidebars are translucent and blurred; content and text stay solid. Apps draw macOS-style title bars with traffic-light buttons
+- Two materials, picked automatically: **Glass** (real blur, on a GPU) and **Frost** (no blur, readable, used in VMs without 3D acceleration)
+- macOS-style menu bar: pineapple menu, the active app's bold name and its menus (File, Edit, View...), status icons, Spotlight, notifications and clock
+- macOS-style Dock: compact frosted shelf, magnification on hover, running-app dots, Trash at the end, auto-hide when a window covers it
+- Launchpad: full-screen app grid (`F4` or the Dock)
+- Rounded window corners, soft shadows, short fade animations
 - WhiteSur GTK, icon and cursor themes; Inter and JetBrains Mono fonts
-- Light and Dark appearance, switched in one click
-- "Reduce transparency" switch for solid surfaces (same idea as the macOS accessibility setting)
-- Original artwork: logo, wallpapers, boot splash, boot menu theme, login screen, login chime
+- Light and Dark appearance in one click, plus a "Reduce transparency" switch
+- Original artwork: pineapple logo, app icons, wallpapers, boot splash, boot menu, login screen, login chime
 
 **Productivity**
-- Plank Dock at the bottom, top menu bar with app menu, status icons and clock
-- Spotlight search: `Super+Space`
-- macOS-like shortcuts: `Ctrl+Shift+3/4` screenshots, `Super+E` files, `Super+T` terminal
+- Spotlight search: `Super+Space`. Launchpad: `F4`. Activity Monitor: `Ctrl+Shift+Esc`
+- Screenshots: `Ctrl+Shift+3` (screen), `Ctrl+Shift+4` (area). Files: `Super+E`. Terminal: `Super+T`
 - Welcome app on first login with the common setup tasks
 
 **AI (local first, cloud optional)**
 - **Orchard Agent** (`orchard-agent`, `Super+C`): an AI agent in the terminal, similar in spirit to Claude Code. It plans, runs commands, reads and edits files, writes and tests code, searches and reads the web, and reports system status (CPU, memory, disk, GPU, network, failed services, listening ports, security alerts)
 - Approval modes: `ask` (default, every action needs your OK), `auto` (read-only commands run automatically), `yolo` (all automatic, except the always-ask list such as `rm -rf /`, `mkfs`, `dd` to disks, `curl | sh`). File edits keep a `.orchard-bak` backup. Every prompt, tool call and decision is logged to `~/.local/share/orchard/agent/agent.log`
 - Providers: **Ollama** on your PC (default, private), **Hugging Face**, **Groq**, **OpenRouter** (free models), **Google Gemini**, **Mistral**, or any OpenAI-compatible server (LM Studio, vLLM, llama.cpp). `orchard-agent key groq` stores a key, `orchard-agent use groq` switches
-- `orchard-ai`: installs Ollama with NVIDIA CUDA / AMD ROCm support, picks a model that fits your RAM and GPU (`orchard-ai recommend`), downloads current models (Qwen 3, Qwen 2.5 Coder, Llama 3.2, Phi-4 mini, Gemma 3, DeepSeek-R1) or any GGUF from Hugging Face (`orchard-ai pull hf.co/USER/REPO`), measures speed (`orchard-ai bench`)
+- `orchard-ai`: installs Ollama with NVIDIA CUDA / AMD ROCm support (`orchard-ai repair` fixes a broken install), picks a model that fits your RAM and GPU (`orchard-ai recommend`), downloads current models (Qwen 3, Qwen 2.5 Coder, Llama 3.2, Phi-4 mini, Gemma 3, DeepSeek-R1) or any GGUF from Hugging Face (`orchard-ai pull hf.co/USER/REPO`), measures speed (`orchard-ai bench`)
 - **Ask AI** from anywhere: `Super+A`
 - **Voice assistant** (`Super+V` push-to-talk, or say "Jarvis"/"Orchard" in hands-free mode with `orchard-voice listen`): offline speech recognition (Vosk) and speech output (eSpeak NG). Opens apps and switches modes directly, and sends everything else to Orchard Agent. System changes still ask for approval in a dialog
 - The `ai`, `ai-models` and `jarvis` commands from earlier releases still work
@@ -49,8 +50,11 @@ Screenshots come from the automated QEMU test run.
 - Network: Ethernet, Wi-Fi (linux-firmware, NetworkManager), Bluetooth, VPN (OpenVPN)
 
 **Apps and system**
-- Epiphany browser, Thunar, Mousepad, Rhythmbox, Celluloid, Evince, Calculator, GParted, Disks
+- Visual Studio Code (from Microsoft's repository), LibreOffice Writer, Calc and Impress
+- Activity Monitor (task manager), Text Editor, Image Viewer (Loupe), Clocks, btop
+- Epiphany browser, Files (Thunar), Rhythmbox, Celluloid, Evince, Calculator, GParted, Disks
 - Software store (GNOME Software) with Flatpak support, no Snap
+- Linux kernel 7.0 (Ubuntu hardware enablement series) for new GPUs, Wi-Fi and laptops
 - `orchard-update` updates everything, `orchard-clean` frees disk space
 - Graphical installer (Calamares) with erase disk, dual boot, manual partitioning and disk encryption
 - Command-line installer `orchard-install` for servers, VMs and automation

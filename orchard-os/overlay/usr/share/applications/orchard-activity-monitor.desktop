@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Activity Monitor
+GenericName=Task Manager
+Comment=See and stop running apps, CPU, memory, disk and network use
+Exec=gnome-system-monitor
+Icon=org.gnome.SystemMonitor
+Categories=System;Monitor;
+Keywords=task;manager;process;cpu;memory;kill;

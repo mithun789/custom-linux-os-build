@@ -1,0 +1,6 @@
+/* Frost: used when the compositor cannot blur (no GPU, most VMs). */
+window.csd.background,
+window.csd.background.maximized,
+dialog.csd.background {
+    background-color: rgba(30, 32, 38, 0.95);
+}
