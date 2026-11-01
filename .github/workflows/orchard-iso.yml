@@ -12,6 +12,10 @@ on:
         description: "Boot and install tests in QEMU"
         type: boolean
         default: true
+      release_tag:
+        description: "Publish a release with this tag, e.g. v1.0 (empty = no release)"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -63,7 +67,7 @@ jobs:
           path: test-results/
 
       - name: Split ISO for release (GitHub limit is 2 GiB per file)
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         run: |
           cd out
           iso=$(ls *.iso)
@@ -74,12 +78,16 @@ jobs:
           ls -la
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: Orchard OS ${{ inputs.release_tag || github.ref_name }}
+          make_latest: true
           files: out/*
           body: |
-            Orchard OS ${{ github.ref_name }}. Boots on BIOS and UEFI. Write it to a USB stick with
+            Orchard OS ${{ inputs.release_tag || github.ref_name }}. Boots on BIOS and UEFI. Write it to a USB stick with
             balenaEtcher, Rufus (DD mode) or `dd`, then pick "Install Orchard OS" on the desktop.
 
             If the ISO is split into `.part00`, `.part01` files, join them first:
