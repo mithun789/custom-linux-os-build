@@ -9,11 +9,11 @@ jobs:
   agent-real-model:
     # Runs Orchard Agent against real local models in Ollama.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        model: ["qwen2.5:1.5b", "qwen3:1.7b", "llama3.2:1b"]
+        model: ["qwen3:1.7b", "qwen2.5:3b", "llama3.2:3b", "qwen3:4b"]
     steps:
       - uses: actions/checkout@v4
 

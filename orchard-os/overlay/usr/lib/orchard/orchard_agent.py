@@ -215,7 +215,8 @@ class Client:
             raise ApiError(f"{provider} needs an API key. Run: orchard-agent key {provider}\n({p['note']})")
 
     def chat(self, messages, tools=None):
-        body = {"model": self.model, "messages": messages, "temperature": 0.2}
+        # max_tokens stops runaway generation on small local models.
+        body = {"model": self.model, "messages": messages, "temperature": 0.2, "max_tokens": 4096}
         if tools:
             body["tools"] = tools
         headers = {"Content-Type": "application/json", "User-Agent": f"orchard-agent/{VERSION}"}
@@ -226,7 +227,7 @@ class Client:
         last = None
         for attempt in range(4):
             try:
-                with urllib.request.urlopen(req, timeout=600) as r:
+                with urllib.request.urlopen(req, timeout=float(os.environ.get("ORCHARD_AGENT_TIMEOUT", "300"))) as r:
                     data = json.loads(r.read().decode())
                 if "choices" not in data or not data["choices"]:
                     raise ApiError(f"unexpected reply: {str(data)[:300]}")
@@ -238,6 +239,12 @@ class Client:
                     time.sleep(2 ** attempt * 2)
                     continue
                 raise last
+            except (TimeoutError, ConnectionError) as e:
+                last = ApiError(f"{self.provider} did not answer in time ({type(e).__name__}). "
+                                "The model may be too large for this computer; try a smaller one.")
+                if self.provider == "ollama":
+                    raise last
+                time.sleep(2 ** attempt)
             except urllib.error.URLError as e:
                 last = ApiError(f"cannot reach {self.base_url}: {e.reason}")
                 if self.provider == "ollama":
