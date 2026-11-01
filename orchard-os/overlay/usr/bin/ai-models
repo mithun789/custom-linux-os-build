@@ -1,0 +1,4 @@
+#!/bin/sh
+# Shortcut kept from earlier releases: ai-models [list|download|delete|default] ...
+[ $# -eq 0 ] && exec orchard-ai models
+exec orchard-ai "$@"

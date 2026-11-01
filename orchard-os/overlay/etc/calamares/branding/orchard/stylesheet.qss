@@ -1,0 +1,2 @@
+QPushButton { padding: 6px 16px; border-radius: 6px; }
+#mainApp { background-color: #F7F8FA; }

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Dock
+Exec=plank
+Icon=plank
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-Delay=2
+NoDisplay=true

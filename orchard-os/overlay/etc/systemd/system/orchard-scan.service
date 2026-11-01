@@ -1,0 +1,8 @@
+[Unit]
+Description=Orchard Guard daily antivirus scan of downloads and temp folders
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/bin/sh -c 'clamscan -r -i --no-summary /home/*/Downloads /tmp /var/tmp /dev/shm 2>/dev/null | sed "s/^/FOUND-SCAN /" >> /var/log/clamav/clamav.log; exit 0'

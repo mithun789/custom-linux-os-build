@@ -1,0 +1,2 @@
+// Make a restore point (at most once a day) before apt installs or removes packages.
+DPkg::Pre-Invoke { "if [ -x /usr/bin/orchard-restore ] && [ -z \"$ORCHARD_NO_SNAPSHOT\" ]; then mkdir -p /var/log/orchard; /usr/bin/orchard-restore auto-apt || true; fi"; };

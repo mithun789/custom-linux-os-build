@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to Orchard OS
+Comment=Set up your desktop, apps and AI assistant
+Exec=orchard-welcome
+Icon=orchard-logo
+Categories=System;Settings;

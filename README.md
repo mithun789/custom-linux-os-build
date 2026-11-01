@@ -1,195 +1,100 @@
-# 🤖 AI-Powered Custom Linux OS
+# Orchard OS
 
-A lightweight, AI-powered Linux operating system built from scratch using Buildroot. Features uncensored AI models, voice control (JARVIS), and flexible AI model management.
+A macOS-styled, AI-ready Linux desktop you can install on any PC. Built on Ubuntu 24.04 LTS.
 
-## 🎯 Quick Start
+![Orchard OS desktop](docs/screenshots/live-desktop.png)
 
-**[Download Latest Release](https://github.com/mithun789/custom-linux-os-build/releases)** → Boot → Connect Internet → Download AI Model → Start Using!
+## What you get
 
-## ✨ Features
+**Look and feel (follows Apple's Human Interface Guidelines on materials)**
+- Translucent menu bar, Dock, Spotlight and menus with real background blur (picom, dual-kawase)
+- Rounded window corners (12 px), soft macOS-style shadows, short fade animations
+- Window buttons on the left (close, minimize, maximize), centered titles
+- WhiteSur GTK, icon and cursor themes; Inter and JetBrains Mono fonts
+- Light and Dark appearance, switched in one click
+- "Reduce transparency" switch for solid surfaces (same idea as the macOS accessibility setting)
+- Original artwork: logo, wallpapers, boot splash, boot menu theme, login screen, login chime
 
-- **🧠 AI Model Manager**: Choose from 16 AI models (45MB - 4GB)
-- **🎙️ JARVIS Voice Assistant**: Voice-controlled system operations
-- **💡 OS Helper AI**: Lightweight configuration assistant (<1GB)
-- **🔓 Uncensored AI**: Dolphin Mistral and other unrestricted models
-- **⚡ Lightweight**: 52MB compressed, 425MB actual data
-- **🐧 Pure Linux**: Built from scratch with Buildroot
+**Productivity**
+- Plank Dock at the bottom, top menu bar with app menu, status icons and clock
+- Spotlight search: `Super+Space`
+- macOS-like shortcuts: `Ctrl+Shift+3/4` screenshots, `Super+E` files, `Super+T` terminal
+- Welcome app on first login with the common setup tasks
 
-## 📦 Download & Install
+**AI (local first, cloud optional)**
+- **Orchard Agent** (`orchard-agent`, `Super+C`): an AI agent in the terminal, similar in spirit to Claude Code. It plans, runs commands, reads and edits files, writes and tests code, searches and reads the web, and reports system status (CPU, memory, disk, GPU, network, failed services, listening ports, security alerts)
+- Approval modes: `ask` (default, every action needs your OK), `auto` (read-only commands run automatically), `yolo` (all automatic, except the always-ask list such as `rm -rf /`, `mkfs`, `dd` to disks, `curl | sh`). File edits keep a `.orchard-bak` backup. Every prompt, tool call and decision is logged to `~/.local/share/orchard/agent/agent.log`
+- Providers: **Ollama** on your PC (default, private), **Hugging Face**, **Groq**, **OpenRouter** (free models), **Google Gemini**, **Mistral**, or any OpenAI-compatible server (LM Studio, vLLM, llama.cpp). `orchard-agent key groq` stores a key, `orchard-agent use groq` switches
+- `orchard-ai`: installs Ollama with NVIDIA CUDA / AMD ROCm support, picks a model that fits your RAM and GPU (`orchard-ai recommend`), downloads current models (Qwen 3, Qwen 2.5 Coder, Llama 3.2, Phi-4 mini, Gemma 3, DeepSeek-R1) or any GGUF from Hugging Face (`orchard-ai pull hf.co/USER/REPO`), measures speed (`orchard-ai bench`)
+- **Ask AI** from anywhere: `Super+A`
+- **Voice assistant** (`Super+V` push-to-talk, or say "Jarvis"/"Orchard" in hands-free mode with `orchard-voice listen`): offline speech recognition (Vosk) and speech output (eSpeak NG). Opens apps and switches modes directly, and sends everything else to Orchard Agent. System changes still ask for approval in a dialog
+- The `ai`, `ai-models` and `jarvis` commands from earlier releases still work
 
-### Option 1: QEMU (Testing)
-```bash
-# Download from releases
-wget https://github.com/mithun789/custom-linux-os-build/releases/download/latest/disk.img.gz
-gunzip disk.img.gz
+**Security and reliability**
+- **Orchard Guard**: checks every 5 minutes for new listening ports, failed logins and sudo attempts, programs running from `/tmp` or `/dev/shm`, long CPU hogs (crypto miners), and changes to users, sudoers, SSH and services. Alerts show as desktop notifications and go to `/var/log/orchard/guard-alerts.log`
+- ClamAV antivirus with daily scans of Downloads and temp folders (`orchard-guard scan` for on-demand scans, ClamTk for a GUI)
+- Firewall (ufw) on by default: incoming blocked, outgoing allowed
+- auditd records changes to accounts, sudo rules, SSH and services. The journal is kept on disk
+- **Restore points**: Timeshift snapshots, made automatically before package changes (once a day at most) and on demand (`orchard-restore create`)
+- Memory management: zram compressed swap, earlyoom (stops the biggest memory hog before the desktop freezes), tuned swappiness
 
-# Run in VM
-qemu-system-x86_64 -drive file=disk.img,format=raw -m 4096 -enable-kvm -cpu host -smp 4
-```
+**Hardware**
+- Graphics: Intel, AMD and NVIDIA (Nouveau) out of the box with Mesa, VA-API video decoding and Vulkan. `orchard-drivers` installs the proprietary NVIDIA driver and optionally the CUDA toolkit; a notification tells you when an NVIDIA GPU needs it
+- Virtual machines: VirtualBox guest additions, VMware tools, QEMU/KVM (virtio, SPICE agent), Hyper-V tools
+- Network: Ethernet, Wi-Fi (linux-firmware, NetworkManager), Bluetooth, VPN (OpenVPN)
 
-### Option 2: USB Install (Physical Hardware)
-```bash
-# Download and write to USB
-wget https://github.com/mithun789/custom-linux-os-build/releases/download/latest/disk.img.gz
-gunzip disk.img.gz
-sudo dd if=disk.img of=/dev/sdX bs=4M status=progress conv=fsync
-# Replace /dev/sdX with your USB drive
-```
+**Apps and system**
+- Epiphany browser, Thunar, Mousepad, Rhythmbox, Celluloid, Evince, Calculator, GParted, Disks
+- Software store (GNOME Software) with Flatpak support, no Snap
+- `orchard-update` updates everything, `orchard-clean` frees disk space
+- Graphical installer (Calamares) with erase disk, dual boot, manual partitioning and disk encryption
+- Command-line installer `orchard-install` for servers, VMs and automation
+- Boots on BIOS and UEFI, from DVD or USB
 
-**Login**: Username `root`, no password (press Enter)
+## Install
 
-## 📚 Documentation
+1. Download `orchard-os-1.0-amd64.iso` from [Releases](https://github.com/mithun789/custom-linux-os-build/releases), or build it (below).
+2. Write it to a USB stick (4 GB or larger) with balenaEtcher, Rufus (DD mode), or:
+   ```bash
+   sudo dd if=orchard-os-1.0-amd64.iso of=/dev/sdX bs=4M status=progress conv=fsync
+   ```
+3. Boot from the USB stick. Pick **Try or Install Orchard OS**.
+4. Click **Install Orchard OS** in the Dock or the Welcome window and follow the steps.
 
-Follow these guides in order to get started:
+| | Minimum | Recommended |
+|---|---|---|
+| CPU | 64-bit x86, 2 cores | 4+ cores with AVX2 |
+| RAM | 4 GB (desktop only) | 8 GB for local AI (6 GB runs 1-3B models) |
+| Disk | 20 GB | 50 GB+ (models are 1-5 GB each) |
+| GPU | any (Intel, AMD, NVIDIA, VM) | NVIDIA with 6 GB+ VRAM for fast local AI |
 
-1. **[Quick Start](docs/01_QUICK_START.md)** - Get up and running in 5 minutes
-2. **[First Boot Guide](docs/02_FIRST_BOOT_GUIDE.md)** - What to do after booting
-3. **[AI Model Manager](docs/03_AI_MODEL_MANAGER.md)** - Download and manage AI models
-4. **[AI Integration Details](docs/04_AI_INTEGRATION_DETAILS.md)** - How AI is integrated
-5. **[JARVIS Voice Control](docs/05_JARVIS_VOICE_CONTROL.md)** - Setup voice assistant
-6. **[OS Helper AI](docs/06_OS_HELPER_AI.md)** - Lightweight AI for quick help
-7. **[Troubleshooting](docs/07_TROUBLESHOOTING.md)** - Common issues and fixes
+Turn off Secure Boot in the firmware settings; the ISO is not signed.
 
-**Reference Docs:**
-- [Cost Analysis](docs/08_COST_ANALYSIS.md)
-- [Complete Setup Reference](docs/09_COMPLETE_SETUP_REFERENCE.md)
-- [Setup Complete](docs/10_SETUP_COMPLETE.md)
-
-## 🚀 Quick Commands
-
-After booting and connecting to internet:
-
-```bash
-# Download an AI model
-ai-models                          # Interactive model selection
-
-# Ask your AI anything
-ai query "What is the capital of France?"
-
-# Execute system commands naturally
-ai do "show me disk usage"
-
-# Setup lightweight helper (<1GB)
-setup-os-helper                    # Choose from 7 tiny models
-
-# Ask quick questions
-os-helper "How do I add a new user?"
-
-# Enable voice control
-jarvis                             # Start voice assistant
-# Say: "Jarvis, update the system"
-```
-
-## 🎯 Available AI Models
-
-### Full Models (via ai-models):
-- **Dolphin Mistral 7B** (4GB) - Uncensored, system control
-- **WizardLM 7B** (4GB) - Instruction following
-- **Nous-Hermes2** (4GB) - Helpful and detailed
-- **Orca-Mini** (1.9GB) - Balanced performance
-- **Phi-2** (1.7GB) - Fast, efficient
-- **TinyLlama** (637MB) - Quick responses
-- ...and 10 more options
-
-### Lightweight Models (via setup-os-helper):
-- **all-MiniLM** (45MB) - Ultra-lightweight
-- **TinyLlama** (637MB) - Small but capable
-- **TinyDolphin** (637MB) - Small uncensored
-- **Quantized Mistral** (950MB) - Compressed quality
-
-## 🛠️ System Requirements
-
-**Minimum:**
-- 2GB RAM (for tiny models)
-- 4GB disk space
-- x86_64 CPU
-- Internet connection
-
-**Recommended:**
-- 8GB RAM (for 7B models)
-- 16GB disk space
-- Multi-core CPU
-- Microphone (for JARVIS)
-
-## 🏗️ Build from Source
+Scripted install (erases the whole disk):
 
 ```bash
-# Clone repository
-git clone https://github.com/mithun789/custom-linux-os-build.git
-cd custom-linux-os-build
-
-# Run MCP server for automated build
-python3 -m venv mcp-venv
-source mcp-venv/bin/activate
-pip install fastmcp
-python build_mcp.py
-
-# Or build manually with Buildroot
-cd ~/buildroot
-make menuconfig
-make -j$(nproc)
+sudo orchard-install --disk /dev/sda --user alice --password 'secret' --hostname my-pc --timezone Europe/Berlin --yes
 ```
 
-See [Complete Setup Reference](docs/09_COMPLETE_SETUP_REFERENCE.md) for detailed build instructions.
+## Build the ISO
 
-## 📋 What's Inside
+```bash
+cd orchard-os
+sudo ./build-iso.sh
+```
 
-- **Base System**: Buildroot 2024.11.x
-- **Kernel**: Linux 6.1.x LTS
-- **AI Runtime**: Ollama
-- **Audio**: ALSA + espeak
-- **Python**: 3.13.5 with AI libraries
-- **Speech**: SpeechRecognition + PyAudio
-- **Custom Tools**: ai, ai-models, jarvis, os-helper
+Full instructions, the layout of the build system and how to change things: [orchard-os/README.md](orchard-os/README.md).
 
-## 🎤 JARVIS Voice Commands
+## Tests
 
-Once JARVIS is running, use these voice commands:
+`orchard-os/test/qemu-test.py` boots the ISO in QEMU on BIOS and UEFI, checks the live desktop and installer, installs to a virtual disk and boots the installed system. The GitHub Actions workflow `.github/workflows/orchard-iso.yml` runs the build and these tests and publishes the ISO when you push a `v*` tag.
 
-- "Jarvis, update the system"
-- "Jarvis, show disk space"
-- "Jarvis, list running processes"
-- "Jarvis, what is my IP address"
-- "Jarvis, create user john"
-- "Jarvis, install package curl"
+## Earlier versions
 
-## 🤝 Contributing
+The first Buildroot-based prototype (scripts and docs) lives in [legacy/](legacy/).
 
-Contributions welcome! Areas for improvement:
-- GUI Desktop Environment (KDE/LXQT)
-- More AI model integrations
-- Additional voice commands
-- Performance optimizations
-- Documentation improvements
+## Credits
 
-## 📝 License
-
-This project is open source. Built with open source tools.
-
-## 🙏 Credits
-
-- **Buildroot** - Linux build system
-- **Ollama** - Local AI runtime
-- **Dolphin Models** - Uncensored AI
-- **OpenAI Whisper** - Speech recognition
-- **espeak** - Text-to-speech
-
-## 📊 Project Stats
-
-- **Build Time**: 2-4 hours (first build), 2 minutes (incremental)
-- **OS Size**: 52MB compressed, 8.1GB uncompressed
-- **Actual Data**: 425MB (rest is free space for AI models)
-- **Boot Time**: ~10 seconds
-- **First Release**: December 2025
-
-## 🔗 Links
-
-- **Repository**: https://github.com/mithun789/custom-linux-os-build
-- **Releases**: https://github.com/mithun789/custom-linux-os-build/releases
-- **Issues**: https://github.com/mithun789/custom-linux-os-build/issues
-
----
-
-**Made with ❤️ by [mithun789](https://github.com/mithun789)**
-
-*Star ⭐ this repo if you find it useful!*
+- Ubuntu 24.04 LTS base, XFCE desktop, Plank, picom, Calamares
+- WhiteSur GTK theme (MIT), WhiteSur icon and cursor themes (GPL-3.0) by vinceliuice
+- Ollama for local AI models

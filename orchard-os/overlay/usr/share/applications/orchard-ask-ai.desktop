@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ask AI
+Comment=Ask the local AI assistant (Super+A)
+Exec=orchard-ai spotlight
+Icon=applications-science
+Categories=Utility;
+Keywords=ai;ask;chat;assistant;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Compositor
+Comment=Blur, rounded corners and shadows
+Exec=orchard-compositor
+OnlyShowIn=XFCE;
+NoDisplay=true

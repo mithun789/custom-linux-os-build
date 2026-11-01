@@ -1,0 +1,3 @@
+#!/bin/sh
+# Kept from earlier releases: hands-free voice assistant.
+exec orchard-voice listen "$@"

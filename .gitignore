@@ -1,3 +1,8 @@
 disk.img.gz
 *.img
 *.img.gz
+out/
+test-results/
+*.iso
+*.qcow2
+__pycache__/

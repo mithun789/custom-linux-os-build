@@ -1,0 +1,12 @@
+PRETTY_NAME="Orchard OS 1.0 (Blossom)"
+NAME="Orchard OS"
+VERSION_ID="1.0"
+VERSION="1.0 (Blossom)"
+VERSION_CODENAME=noble
+ID=orchard
+ID_LIKE="ubuntu debian"
+HOME_URL="https://github.com/mithun789/custom-linux-os-build"
+SUPPORT_URL="https://github.com/mithun789/custom-linux-os-build/issues"
+BUG_REPORT_URL="https://github.com/mithun789/custom-linux-os-build/issues"
+UBUNTU_CODENAME=noble
+LOGO=orchard-logo

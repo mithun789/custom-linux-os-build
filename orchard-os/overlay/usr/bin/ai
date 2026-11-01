@@ -1,0 +1,3 @@
+#!/bin/sh
+# Shortcut kept from earlier releases: ai query|do|chat ...
+exec orchard-ai "$@"

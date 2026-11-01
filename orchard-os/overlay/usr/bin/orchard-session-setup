@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Per-user desktop setup. Runs at every XFCE login; first-run work is
+# done once and recorded in ~/.config/orchard/setup-version.
+set -u
+VERSION=3
+state="$HOME/.config/orchard"
+mkdir -p "$state"
+
+xdg-user-dirs-update >/dev/null 2>&1 || true
+
+if [[ "$(cat "$state/setup-version" 2>/dev/null)" != "$VERSION" ]]; then
+    # Give xfdesktop and xfconfd a moment to register the monitors.
+    sleep 3
+    orchard-appearance "$(cat "$state/appearance" 2>/dev/null || echo light)" >/dev/null 2>&1
+
+    # macOS-style keyboard shortcuts.
+    k() { xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/$1" --create -t string -s "$2"; }
+    k '<Super>space' orchard-spotlight
+    k '<Primary>space' orchard-spotlight
+    k '<Super>a' 'orchard-ai spotlight'
+    k '<Super>v' 'orchard-voice ptt'
+    k '<Super>c' 'xfce4-terminal -T "Orchard Agent" -x orchard-agent'
+    k '<Super>e' thunar
+    k '<Super>t' xfce4-terminal
+    k '<Primary><Alt>t' xfce4-terminal
+    k '<Super>l' 'xflock4'
+    k '<Primary><Shift>3' 'xfce4-screenshooter -f'
+    k '<Primary><Shift>4' 'xfce4-screenshooter -r'
+    k '<Primary><Alt>Delete' xfce4-taskmanager
+
+    # Clean desktop: show only removable drives and trash.
+    xfconf-query -c xfce4-desktop -p /desktop-icons/file-icons/show-home --create -t bool -s false
+    xfconf-query -c xfce4-desktop -p /desktop-icons/file-icons/show-filesystem --create -t bool -s false
+    xfconf-query -c xfce4-desktop -p /desktop-icons/file-icons/show-trash --create -t bool -s true
+
+    echo "$VERSION" > "$state/setup-version"
+    # Restart the dock so it picks up the per-user theme colors.
+    pkill -x plank && (sleep 1; setsid plank >/dev/null 2>&1 &)
+fi
+exit 0

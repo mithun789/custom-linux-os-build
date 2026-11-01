@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard AI
+Comment=Private AI assistant running on this computer
+Exec=orchard-ai gui
+Icon=applications-science
+Categories=Utility;
+Keywords=ai;chat;llm;ollama;assistant;

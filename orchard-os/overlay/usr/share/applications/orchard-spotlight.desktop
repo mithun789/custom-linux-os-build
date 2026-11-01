@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Spotlight Search
+Comment=Search apps and files (Super+Space)
+Exec=orchard-spotlight
+Icon=system-search
+Categories=Utility;

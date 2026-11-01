@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Orchard OS
+Description=Orchard OS boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/orchard
+ScriptFile=/usr/share/plymouth/themes/orchard/orchard.script

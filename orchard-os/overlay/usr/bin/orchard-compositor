@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Start the blur compositor (picom). Falls back to the xfwm4 compositor when
+# picom cannot start (no OpenGL) or when "Reduce transparency" is on.
+set -u
+state="$HOME/.config/orchard"
+conf="$HOME/.config/picom/picom.conf"
+[[ -f "$conf" ]] || conf=/etc/xdg/picom/orchard.conf
+
+xfwm_comp() { xfconf-query -c xfwm4 -p /general/use_compositing --create -t bool -s "$1"; }
+
+if [[ -f "$state/reduce-transparency" ]] || ! command -v picom >/dev/null; then
+    xfwm_comp true
+    exit 0
+fi
+
+pkill -x picom 2>/dev/null
+xfwm_comp false
+sleep 0.5
+picom --config "$conf" >/dev/null 2>"$state/picom.log" &
+pid=$!
+sleep 4
+if ! kill -0 "$pid" 2>/dev/null; then
+    # No usable OpenGL: keep shadows and transparency, skip blur.
+    picom --config "$conf" --backend xrender --blur-method none >/dev/null 2>>"$state/picom.log" &
+    pid=$!
+    sleep 3
+    if ! kill -0 "$pid" 2>/dev/null; then
+        xfwm_comp true
+        exit 0
+    fi
+fi
+wait "$pid"

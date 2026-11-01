@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to Orchard OS
+Exec=orchard-welcome --autostart
+Icon=orchard-logo
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-GNOME-Autostart-Delay=4

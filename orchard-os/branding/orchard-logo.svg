@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="fruit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C6F07A"/>
+      <stop offset="0.55" stop-color="#5FCB8A"/>
+      <stop offset="1" stop-color="#1E9E8F"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#2E8B57"/>
+      <stop offset="1" stop-color="#7EDC6B"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0.35" cy="0.35" r="0.5">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- fruit body: two overlapping circles form a soft pear-like silhouette -->
+  <path d="M128 62c-22 0-36 16-36 38 0 10 3 18 3 26-14 10-27 27-27 50 0 36 27 58 60 58s60-22 60-58c0-23-13-40-27-50 0-8 3-16 3-26 0-22-14-38-36-38z" fill="url(#fruit)"/>
+  <path d="M128 62c-22 0-36 16-36 38 0 10 3 18 3 26-14 10-27 27-27 50 0 36 27 58 60 58s60-22 60-58c0-23-13-40-27-50 0-8 3-16 3-26 0-22-14-38-36-38z" fill="url(#shine)"/>
+  <!-- stem -->
+  <path d="M128 64c0-14 4-24 12-32" stroke="#5B4636" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <!-- leaf -->
+  <path d="M138 40c14-18 40-20 56-12-6 20-30 32-56 12z" fill="url(#leaf)"/>
+</svg>

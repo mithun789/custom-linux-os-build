@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard driver check
+Exec=orchard-drivers check
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-GNOME-Autostart-Delay=20

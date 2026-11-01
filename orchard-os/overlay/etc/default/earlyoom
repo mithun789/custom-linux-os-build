@@ -1,0 +1,3 @@
+# Orchard OS: stop the biggest memory hog before the desktop freezes.
+# Never kill the session, display server or login manager.
+EARLYOOM_ARGS="-m 4 -s 10 -r 3600 -n --avoid '(^|/)(Xorg|lightdm|xfce4-session|xfwm4|xfce4-panel|plank|systemd|sshd)$' --prefer '(^|/)(ollama|chrome|chromium|java|node)$'"

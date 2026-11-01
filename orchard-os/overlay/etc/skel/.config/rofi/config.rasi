@@ -1,0 +1,9 @@
+configuration {
+    modi: "drun,run,window,filebrowser";
+    show-icons: true;
+    icon-theme: "WhiteSur";
+    drun-display-format: "{name}";
+    display-drun: "";
+    font: "Inter 12";
+}
+@theme "/usr/share/orchard/rofi/spotlight.rasi"

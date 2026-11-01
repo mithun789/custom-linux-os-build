@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily antivirus scan
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

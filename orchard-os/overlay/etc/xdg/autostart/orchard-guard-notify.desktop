@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Guard notifications
+Exec=orchard-guard notify
+OnlyShowIn=XFCE;
+NoDisplay=true

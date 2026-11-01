@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Orchard restore points (Timeshift snapshots of the system, not your files).
+#
+#   orchard-restore create ["comment"]   make a restore point now
+#   orchard-restore list                 show restore points
+#   orchard-restore restore              open the restore tool (pick a point, then reboot)
+#   orchard-restore auto-apt             called before package changes (once a day at most)
+set -u
+[[ $EUID -eq 0 ]] || exec sudo "$0" "$@"
+
+live() { grep -q 'boot=casper' /proc/cmdline; }
+root_dev() { findmnt -no SOURCE /; }
+
+create() {
+    live && { echo "Restore points are not available in the live session."; return 0; }
+    command -v timeshift >/dev/null || { echo "timeshift is not installed"; return 1; }
+    timeshift --create --rsync --comments "${1:-Restore point}" --tags O --snapshot-device "$(root_dev)" --yes
+}
+
+case "${1:-list}" in
+    create) create "${2:-}" ;;
+    list) timeshift --list --snapshot-device "$(root_dev)" 2>/dev/null || echo "No restore points yet." ;;
+    restore) exec timeshift-launcher ;;
+    auto-apt)
+        live && exit 0
+        stamp=/var/lib/orchard/last-apt-snapshot
+        mkdir -p /var/lib/orchard
+        if [[ ! -f $stamp ]] || [[ $(( $(date +%s) - $(stat -c %Y "$stamp") )) -gt 86400 ]]; then
+            touch "$stamp"
+            echo "orchard-restore: creating a restore point before package changes"
+            create "Before package changes" >/var/log/orchard/restore.log 2>&1 || true
+        fi
+        ;;
+    *) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

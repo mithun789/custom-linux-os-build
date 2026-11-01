@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Free disk space: package cache, old logs, thumbnails, trash, unused packages
+# and unused Flatpak runtimes. Shows how much space was recovered.
+set -u
+before=$(df --output=avail -B1 / | tail -1)
+echo "==> Cleaning your files (thumbnails, trash, caches)"
+rm -rf "$HOME/.cache/thumbnails/"* "$HOME/.local/share/Trash/files/"* "$HOME/.local/share/Trash/info/"* 2>/dev/null
+echo "==> Cleaning system files (needs your password)"
+sudo sh -c '
+    apt-get -y autoremove --purge >/dev/null
+    apt-get clean
+    journalctl --vacuum-time=14d >/dev/null 2>&1
+    command -v flatpak >/dev/null && flatpak uninstall --unused -y --noninteractive >/dev/null 2>&1
+    true
+'
+after=$(df --output=avail -B1 / | tail -1)
+freed=$(( (after - before) / 1024 / 1024 ))
+[[ $freed -lt 0 ]] && freed=0
+echo "==> Done. Freed ${freed} MB."
+command -v notify-send >/dev/null && notify-send -i user-trash "Orchard Clean" "Freed ${freed} MB" 2>/dev/null
+exit 0

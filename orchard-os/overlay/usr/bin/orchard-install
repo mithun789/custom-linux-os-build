@@ -1,0 +1,221 @@
+#!/usr/bin/env bash
+# Orchard OS command-line installer.
+#
+# Installs Orchard OS from the live system onto a whole disk. The disk gets a
+# GPT layout that boots on both BIOS and UEFI machines:
+#   1  1 MiB   BIOS boot (for GRUB on legacy BIOS)
+#   2  512 MiB EFI system partition (FAT32)
+#   3  rest    root filesystem (ext4)
+#
+# Usage:
+#   sudo orchard-install --disk /dev/sdX --user NAME --password PASS [options]
+#
+# Options:
+#   --disk DEV          target disk (ALL DATA ON IT IS ERASED)
+#   --user NAME         login name of the first user (added to sudo)
+#   --password PASS     password for that user
+#   --fullname "NAME"   display name (default: same as --user)
+#   --hostname NAME     computer name (default: orchard)
+#   --timezone ZONE     e.g. Europe/Berlin (default: Etc/UTC)
+#   --locale LOCALE     e.g. de_DE.UTF-8 (default: en_US.UTF-8)
+#   --keyboard LAYOUT   XKB layout, e.g. us, de, fr (default: us)
+#   --autologin         log the user in without a password prompt
+#   --serial            also send the console to ttyS0 (servers, VMs)
+#   --source FILE       squashfs to install (default: the live medium)
+#   --yes               do not ask for confirmation
+#
+# The graphical installer ("Install Orchard OS" on the desktop) does the same
+# with a friendly UI and supports dual boot and encryption.
+set -euo pipefail
+
+DISK="" USERNAME="" PASSWORD="" FULLNAME="" HOSTNAME_="orchard"
+TZ_="Etc/UTC" LOCALE="en_US.UTF-8" KEYMAP="us" AUTOLOGIN=0 SERIAL=0 YES=0
+SOURCE=""
+TARGET=/mnt/orchard-target
+
+usage() { sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+die() { echo "orchard-install: $*" >&2; exit 1; }
+step() { printf '\n\033[1;32m[orchard-install]\033[0m %s\n' "$*"; }
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --disk) DISK="$2"; shift 2 ;;
+        --user) USERNAME="$2"; shift 2 ;;
+        --password) PASSWORD="$2"; shift 2 ;;
+        --fullname) FULLNAME="$2"; shift 2 ;;
+        --hostname) HOSTNAME_="$2"; shift 2 ;;
+        --timezone) TZ_="$2"; shift 2 ;;
+        --locale) LOCALE="$2"; shift 2 ;;
+        --keyboard) KEYMAP="$2"; shift 2 ;;
+        --autologin) AUTOLOGIN=1; shift ;;
+        --serial) SERIAL=1; shift ;;
+        --source) SOURCE="$2"; shift 2 ;;
+        --yes|-y) YES=1; shift ;;
+        -h|--help) usage 0 ;;
+        *) echo "unknown option: $1" >&2; usage 2 ;;
+    esac
+done
+
+[[ $EUID -eq 0 ]] || die "run as root (sudo orchard-install ...)"
+[[ -n "$DISK" && -n "$USERNAME" && -n "$PASSWORD" ]] || usage 2
+[[ -b "$DISK" ]] || die "$DISK is not a block device"
+[[ "$USERNAME" =~ ^[a-z_][a-z0-9_-]*$ ]] || die "invalid user name: $USERNAME"
+[[ "$HOSTNAME_" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] || die "invalid hostname: $HOSTNAME_"
+[[ -f "/usr/share/zoneinfo/$TZ_" ]] || die "unknown timezone: $TZ_"
+FULLNAME="${FULLNAME:-$USERNAME}"
+
+if [[ -z "$SOURCE" ]]; then
+    for c in /cdrom/casper/filesystem.squashfs /run/live/medium/casper/filesystem.squashfs; do
+        [[ -f "$c" ]] && SOURCE="$c" && break
+    done
+fi
+[[ -f "$SOURCE" ]] || die "installation source not found (are you in the live session?)"
+
+if lsblk -nro MOUNTPOINT "$DISK" | grep -q .; then
+    die "$DISK has mounted partitions. Unmount them first."
+fi
+
+size_gb=$(( $(blockdev --getsize64 "$DISK") / 1024 / 1024 / 1024 ))
+[[ $size_gb -ge 10 ]] || die "$DISK is ${size_gb} GB. At least 10 GB is needed."
+
+if [[ $YES -ne 1 ]]; then
+    echo "This will ERASE ALL DATA on $DISK (${size_gb} GB):"
+    lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MODEL "$DISK"
+    read -r -p "Type YES to continue: " ok
+    [[ "$ok" == "YES" ]] || die "aborted"
+fi
+
+part() {  # part DISK N -> partition device path (handles nvme/mmc naming)
+    if [[ "$1" =~ [0-9]$ ]]; then echo "${1}p$2"; else echo "${1}$2"; fi
+}
+
+cleanup() {
+    set +e
+    for d in sys/firmware/efi/efivars sys proc dev/pts dev run boot/efi; do
+        mountpoint -q "$TARGET/$d" && umount -l "$TARGET/$d"
+    done
+    mountpoint -q "$TARGET" && umount -l "$TARGET"
+}
+trap cleanup EXIT
+
+step "Partitioning $DISK"
+swapoff -a 2>/dev/null || true
+wipefs -af "$DISK" >/dev/null
+sgdisk --zap-all "$DISK" >/dev/null 2>&1 || true
+parted -s "$DISK" mklabel gpt \
+    mkpart bios 1MiB 2MiB set 1 bios_grub on \
+    mkpart ESP fat32 2MiB 514MiB set 2 esp on \
+    mkpart root ext4 514MiB 100%
+partprobe "$DISK" 2>/dev/null || true
+udevadm settle 2>/dev/null || sleep 2
+P_ESP="$(part "$DISK" 2)"
+P_ROOT="$(part "$DISK" 3)"
+for _ in $(seq 1 20); do [[ -b "$P_ROOT" ]] && break; sleep 0.5; done
+[[ -b "$P_ROOT" ]] || die "partition $P_ROOT did not appear"
+
+step "Formatting"
+mkfs.vfat -F 32 -n EFI "$P_ESP" >/dev/null
+mkfs.ext4 -F -q -L orchard "$P_ROOT"
+
+step "Copying the system (this takes a few minutes)"
+mkdir -p "$TARGET"
+mount "$P_ROOT" "$TARGET"
+unsquashfs -f -q -n -d "$TARGET" "$SOURCE" >/dev/null || unsquashfs -f -d "$TARGET" "$SOURCE"
+mkdir -p "$TARGET/boot/efi"
+mount "$P_ESP" "$TARGET/boot/efi"
+
+step "Configuring the system"
+UUID_ROOT="$(blkid -s UUID -o value "$P_ROOT")"
+UUID_ESP="$(blkid -s UUID -o value "$P_ESP")"
+cat > "$TARGET/etc/fstab" <<EOF
+# <file system>  <mount point>  <type>  <options>  <dump>  <pass>
+UUID=$UUID_ROOT  /          ext4  errors=remount-ro  0  1
+UUID=$UUID_ESP   /boot/efi  vfat  umask=0077         0  1
+/swapfile        none       swap  sw                 0  0
+EOF
+
+echo "$HOSTNAME_" > "$TARGET/etc/hostname"
+cat > "$TARGET/etc/hosts" <<EOF
+127.0.0.1   localhost
+127.0.1.1   $HOSTNAME_
+::1         localhost ip6-localhost ip6-loopback
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+EOF
+
+for d in dev dev/pts proc sys run; do mount --bind "/$d" "$TARGET/$d"; done
+if [[ -d /sys/firmware/efi/efivars ]]; then
+    mount --bind /sys/firmware/efi/efivars "$TARGET/sys/firmware/efi/efivars" 2>/dev/null || true
+fi
+in_target() { chroot "$TARGET" /usr/bin/env -i HOME=/root LANG=C.UTF-8 ORCHARD_NO_SNAPSHOT=1 \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBIAN_FRONTEND=noninteractive "$@"; }
+
+: > "$TARGET/etc/machine-id"
+in_target systemd-machine-id-setup >/dev/null
+
+ln -sf "/usr/share/zoneinfo/$TZ_" "$TARGET/etc/localtime"
+echo "$TZ_" > "$TARGET/etc/timezone"
+
+if ! grep -q "^${LOCALE} " "$TARGET/etc/locale.gen" 2>/dev/null; then
+    charset="${LOCALE#*.}"; [[ "$charset" == "$LOCALE" ]] && charset=UTF-8
+    echo "$LOCALE $charset" >> "$TARGET/etc/locale.gen"
+fi
+sed -i "s/^# *\(${LOCALE//./\\.} \)/\1/" "$TARGET/etc/locale.gen"
+in_target locale-gen >/dev/null
+printf 'LANG=%s\n' "$LOCALE" > "$TARGET/etc/default/locale"
+
+sed -i "s/^XKBLAYOUT=.*/XKBLAYOUT=\"$KEYMAP\"/" "$TARGET/etc/default/keyboard" 2>/dev/null || \
+    printf 'XKBMODEL="pc105"\nXKBLAYOUT="%s"\nXKBVARIANT=""\nXKBOPTIONS=""\nBACKSPACE="guess"\n' "$KEYMAP" > "$TARGET/etc/default/keyboard"
+
+step "Creating user $USERNAME"
+groups="sudo,adm,cdrom,dip,plugdev,audio,video,netdev,lpadmin,bluetooth"
+avail=""
+IFS=, read -ra gl <<< "$groups"
+for g in "${gl[@]}"; do in_target getent group "$g" >/dev/null && avail+="${avail:+,}$g"; done
+in_target useradd -m -s /bin/bash -c "$FULLNAME" -G "$avail" "$USERNAME"
+printf '%s:%s\n' "$USERNAME" "$PASSWORD" | in_target chpasswd
+in_target passwd -l root >/dev/null
+
+if [[ $AUTOLOGIN -eq 1 ]]; then
+    cat > "$TARGET/etc/lightdm/lightdm.conf.d/60-autologin.conf" <<EOF
+[Seat:*]
+autologin-user=$USERNAME
+autologin-user-timeout=0
+EOF
+fi
+
+step "Creating swap file"
+swap_mb=2048
+mem_mb=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1024 ))
+[[ $mem_mb -lt 2048 ]] && swap_mb=$(( mem_mb * 2 ))
+fallocate -l "${swap_mb}M" "$TARGET/swapfile" 2>/dev/null || dd if=/dev/zero of="$TARGET/swapfile" bs=1M count="$swap_mb" status=none
+chmod 600 "$TARGET/swapfile"
+mkswap "$TARGET/swapfile" >/dev/null
+
+step "Removing live-session packages"
+in_target apt-get -y -q purge casper calamares >/dev/null 2>&1 || true
+rm -f "$TARGET/usr/share/applications/orchard-install.desktop"
+find "$TARGET/etc/skel" "$TARGET/home" -name 'orchard-install.dockitem' -delete 2>/dev/null || true
+
+if [[ $SERIAL -eq 1 ]]; then
+    sed -i 's/^GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8"/' "$TARGET/etc/default/grub"
+    sed -i 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=menu/' "$TARGET/etc/default/grub"
+    grep -q '^GRUB_TERMINAL=' "$TARGET/etc/default/grub" || \
+        printf 'GRUB_TERMINAL="console serial"\nGRUB_SERIAL_COMMAND="serial --speed=115200"\n' >> "$TARGET/etc/default/grub"
+fi
+
+step "Building the initial ramdisk"
+in_target update-initramfs -c -k all >/dev/null 2>&1 || in_target update-initramfs -u -k all
+
+step "Installing the boot loader (BIOS + UEFI)"
+in_target grub-install --target=i386-pc --recheck "$DISK"
+if [[ -d /sys/firmware/efi ]]; then
+    in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=orchard --recheck
+fi
+# Fallback path so the disk also boots on UEFI firmware without an NVRAM entry.
+in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=orchard \
+    --removable --no-nvram --recheck
+in_target update-grub
+
+sync
+step "Orchard OS is installed on $DISK. Remove the install medium and restart."

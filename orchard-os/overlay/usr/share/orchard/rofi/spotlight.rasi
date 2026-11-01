@@ -1,0 +1,35 @@
+/* Orchard Spotlight: centered search launcher (Super+Space). */
+* {
+    bg:      #F7F8FAB8;
+    bg-alt:  #FFFFFF80;
+    fg:      #1D2430;
+    fg-dim:  #6B7686;
+    accent:  #2FA88E;
+    background-color: transparent;
+    text-color: @fg;
+}
+window {
+    location: north;
+    y-offset: 22%;
+    width: 640px;
+    border-radius: 16px;
+    background-color: @bg;
+    border: 1px;
+    border-color: #FFFFFF80;
+    padding: 12px;
+}
+mainbox { spacing: 8px; children: [ inputbar, listview ]; }
+inputbar {
+    padding: 10px 14px;
+    border-radius: 10px;
+    background-color: @bg-alt;
+    children: [ prompt, entry ];
+    spacing: 10px;
+}
+prompt { text-color: @accent; }
+entry { placeholder: "Search apps, files and commands"; placeholder-color: @fg-dim; }
+listview { lines: 7; columns: 1; scrollbar: false; spacing: 2px; fixed-height: false; }
+element { padding: 8px 12px; border-radius: 10px; spacing: 12px; }
+element selected { background-color: @accent; text-color: #FFFFFF; }
+element-icon { size: 28px; }
+element-text { vertical-align: 0.5; text-color: inherit; }

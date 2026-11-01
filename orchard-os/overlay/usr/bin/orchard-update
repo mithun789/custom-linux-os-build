@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Update everything: deb packages and Flatpak apps.
+set -e
+if [[ $EUID -ne 0 ]]; then exec sudo "$0" "$@"; fi
+echo "==> Updating package lists"
+apt-get update
+echo "==> Upgrading packages"
+DEBIAN_FRONTEND=noninteractive apt-get -y full-upgrade
+apt-get -y autoremove --purge
+if command -v flatpak >/dev/null; then
+    echo "==> Updating Flatpak apps"
+    flatpak update -y --noninteractive || true
+fi
+echo "==> Orchard OS is up to date"

@@ -1,0 +1,37 @@
+---
+componentName: orchard
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: normal
+windowSize: 900px,620px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+    productName:         "Orchard OS"
+    shortProductName:    "Orchard"
+    version:             "1.0 Blossom"
+    shortVersion:        "1.0"
+    versionedName:       "Orchard OS 1.0"
+    shortVersionedName:  "Orchard 1.0"
+    bootloaderEntryName: "Orchard"
+    productUrl:          "https://github.com/mithun789/custom-linux-os-build"
+    supportUrl:          "https://github.com/mithun789/custom-linux-os-build/issues"
+
+images:
+    productLogo:    "logo.png"
+    productIcon:    "logo.png"
+    productWelcome: "welcome.png"
+
+slideshow: "show.qml"
+slideshowAPI: 2
+
+style:
+   SidebarBackground:        "#0E1626"
+   SidebarText:              "#E8ECF2"
+   SidebarTextCurrent:       "#0E1626"
+   SidebarBackgroundCurrent: "#7EDC9B"
+
+uploadServer:
+    type: "none"

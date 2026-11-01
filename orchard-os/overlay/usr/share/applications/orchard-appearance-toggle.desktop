@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Toggle Light/Dark Appearance
+Exec=orchard-appearance toggle
+Icon=preferences-desktop-theme
+Categories=Settings;DesktopSettings;

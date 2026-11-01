@@ -1,0 +1,69 @@
+# Orchard OS boot splash: logo, wordmark and a pulsing three-dot loader.
+Window.SetBackgroundTopColor(0.055, 0.086, 0.149);
+Window.SetBackgroundBottomColor(0.090, 0.140, 0.235);
+
+cx = Window.GetX() + Window.GetWidth() / 2;
+cy = Window.GetY() + Window.GetHeight() / 2;
+
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetX(cx - logo.image.GetWidth() / 2);
+logo.sprite.SetY(cy - logo.image.GetHeight() / 2 - 60);
+
+title.image = Image.Text("Orchard OS", 0.93, 0.96, 0.98, 1, "Sans Bold 20");
+title.sprite = Sprite(title.image);
+title.sprite.SetX(cx - title.image.GetWidth() / 2);
+title.sprite.SetY(cy + logo.image.GetHeight() / 2 - 30);
+
+dot.image = Image.Text("●", 0.37, 0.80, 0.54, 1, "Sans 14");
+for (i = 0; i < 3; i++) {
+    dots[i] = Sprite(dot.image);
+    dots[i].SetX(cx - 30 + i * 24);
+    dots[i].SetY(cy + logo.image.GetHeight() / 2 + 30);
+    dots[i].SetOpacity(0.25);
+}
+
+tick = 0;
+fun refresh_callback() {
+    tick++;
+    for (i = 0; i < 3; i++) {
+        phase = (tick / 12 + i * 0.7);
+        dots[i].SetOpacity(0.25 + 0.75 * Math.Abs(Math.Sin(phase)));
+    }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# ---- password prompt (disk encryption)
+prompt_sprite = Sprite();
+bullet_sprite = Sprite();
+fun display_password_callback(prompt, bullets) {
+    p = Image.Text(prompt, 0.9, 0.9, 0.9, 1, "Sans 12");
+    prompt_sprite.SetImage(p);
+    prompt_sprite.SetX(cx - p.GetWidth() / 2);
+    prompt_sprite.SetY(cy + 140);
+    s = "";
+    for (i = 0; i < bullets; i++) s += "●";
+    if (s == "") s = " ";
+    b = Image.Text(s, 1, 1, 1, 1, "Sans 14");
+    bullet_sprite.SetImage(b);
+    bullet_sprite.SetX(cx - b.GetWidth() / 2);
+    bullet_sprite.SetY(cy + 170);
+    prompt_sprite.SetOpacity(1);
+    bullet_sprite.SetOpacity(1);
+}
+fun display_normal_callback() {
+    prompt_sprite.SetOpacity(0);
+    bullet_sprite.SetOpacity(0);
+}
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+
+# ---- status messages
+message_sprite = Sprite();
+fun message_callback(text) {
+    m = Image.Text(text, 0.7, 0.75, 0.8, 1, "Sans 10");
+    message_sprite.SetImage(m);
+    message_sprite.SetX(cx - m.GetWidth() / 2);
+    message_sprite.SetY(Window.GetY() + Window.GetHeight() - 50);
+}
+Plymouth.SetMessageFunction(message_callback);

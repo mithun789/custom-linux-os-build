@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# Orchard Guard: watches the system for unusual behaviour and malware.
+#
+#   orchard-guard check        run all checks now (root; the timer runs this every 5 minutes)
+#   orchard-guard status       firewall, antivirus and recent alerts
+#   orchard-guard ports        programs listening on network ports
+#   orchard-guard scan [PATH]  antivirus scan (default: your home folder)
+#   orchard-guard baseline     accept the current listening ports as normal (root)
+#   orchard-guard log          all alerts
+#   orchard-guard notify       desktop notifier for new alerts (started at login)
+#
+# Checks: new listening ports, failed logins and sudo attempts, programs
+# running from /tmp or /dev/shm, processes using a full CPU core for a long
+# time (crypto miners), changes to users, sudoers and SSH config, ClamAV
+# detections. Alerts go to /var/log/orchard/guard-alerts.log and the desktop.
+set -u
+LOGDIR=/var/log/orchard
+ALERTS=$LOGDIR/guard-alerts.log
+STATE=/var/lib/orchard-guard
+
+alert() {  # alert LEVEL CHECK MESSAGE
+    local line
+    line="$(date -Is) [$1] $2: $3"
+    echo "$line" >> "$ALERTS"
+    logger -t orchard-guard -p "auth.$([[ $1 == HIGH ]] && echo warning || echo notice)" "$2: $3"
+}
+
+need_root() { [[ $EUID -eq 0 ]] || exec sudo "$0" "$@"; }
+
+listening() { ss -tulnpH 2>/dev/null | awk '{split($7,a,"\""); print $1, $5, (a[2] ? a[2] : "-")}' | sort -u; }
+
+check_ports() {
+    local now="$STATE/ports.now"
+    listening > "$now"
+    if [[ ! -f "$STATE/ports.baseline" ]]; then cp "$now" "$STATE/ports.baseline"; return; fi
+    comm -13 "$STATE/ports.baseline" "$now" | while read -r proto addr prog; do
+        [[ -z "$proto" ]] && continue
+        grep -qxF "$proto $addr $prog" "$STATE/ports.alerted" 2>/dev/null && continue
+        alert MEDIUM ports "new listening port $proto $addr by '$prog' (accept with: sudo orchard-guard baseline)"
+        echo "$proto $addr $prog" >> "$STATE/ports.alerted"
+    done
+}
+
+check_logins() {
+    local since="$STATE/last-check" n
+    local from="-5min"
+    [[ -f "$since" ]] && from="@$(cat "$since")"
+    n=$(journalctl --since "$from" --no-pager -q 2>/dev/null \
+        | grep -cE "authentication failure|Failed password|incorrect password attempts|Invalid user" || true)
+    [[ "$n" -ge 5 ]] && alert HIGH logins "$n failed login or sudo attempts in the last check window"
+    date +%s > "$since"
+}
+
+check_tmp_exec() {
+    local pid exe
+    for pid in /proc/[0-9]*; do
+        exe=$(readlink "$pid/exe" 2>/dev/null) || continue
+        case "$exe" in
+            /tmp/*|/dev/shm/*|/var/tmp/*|*"(deleted)")
+                [[ "$exe" == *"(deleted)" && "$exe" != /tmp/* && "$exe" != /dev/shm/* ]] && continue
+                key="${pid#/proc/}:$exe"
+                grep -qxF "$key" "$STATE/exec.alerted" 2>/dev/null && continue
+                alert HIGH process "process ${pid#/proc/} runs from a temporary folder: $exe ($(tr '\0' ' ' < "$pid/cmdline" | cut -c1-120))"
+                echo "$key" >> "$STATE/exec.alerted"
+                ;;
+        esac
+    done
+}
+
+check_cpu_hogs() {
+    # Processes that have used more than 90% of a core for over 30 minutes.
+    ps -eo pid=,etimes=,pcpu=,comm= --sort=-pcpu | head -5 | while read -r pid secs cpu comm; do
+        [[ ${cpu%.*} -ge 90 && $secs -ge 1800 ]] || continue
+        case "$comm" in ollama|ollama_llama_se*|python3|cc1*|rustc|ffmpeg|clamscan) continue ;; esac
+        grep -qxF "$pid" "$STATE/cpu.alerted" 2>/dev/null && continue
+        alert MEDIUM cpu "'$comm' (pid $pid) has used ${cpu}% CPU for $((secs / 60)) minutes"
+        echo "$pid" >> "$STATE/cpu.alerted"
+    done
+}
+
+check_files() {
+    local f sum old
+    for f in /etc/passwd /etc/group /etc/sudoers /etc/ssh/sshd_config /etc/crontab; do
+        [[ -e "$f" ]] || continue
+        sum=$(sha256sum "$f" | cut -d' ' -f1)
+        old=$(grep -F " $f" "$STATE/files.sha256" 2>/dev/null | cut -d' ' -f1)
+        if [[ -n "$old" && "$old" != "$sum" ]]; then
+            alert MEDIUM files "$f was changed"
+        fi
+    done
+    for f in /etc/sudoers.d/* /etc/cron.d/* /etc/systemd/system/*.service; do
+        [[ -e "$f" ]] || continue
+        grep -qF " $f" "$STATE/files.sha256" 2>/dev/null || {
+            [[ -s "$STATE/files.sha256" ]] && alert MEDIUM files "new file $f"
+        }
+    done
+    : > "$STATE/files.sha256.new"
+    for f in /etc/passwd /etc/group /etc/sudoers /etc/ssh/sshd_config /etc/crontab /etc/sudoers.d/* /etc/cron.d/* /etc/systemd/system/*.service; do
+        [[ -e "$f" ]] && sha256sum "$f" >> "$STATE/files.sha256.new"
+    done
+    mv "$STATE/files.sha256.new" "$STATE/files.sha256"
+}
+
+check_clamav() {
+    local log=/var/log/clamav/clamav.log
+    [[ -r "$log" ]] || return 0
+    grep -h "FOUND" "$log" 2>/dev/null | while read -r line; do
+        grep -qxF "$line" "$STATE/clam.alerted" 2>/dev/null && continue
+        alert HIGH malware "$line"
+        echo "$line" >> "$STATE/clam.alerted"
+    done
+}
+
+cmd_check() {
+    need_root check
+    mkdir -p "$LOGDIR" "$STATE"
+    touch "$ALERTS"; chmod 644 "$ALERTS"
+    check_ports; check_logins; check_tmp_exec; check_cpu_hogs; check_files; check_clamav
+}
+
+cmd_status() {
+    echo "Firewall:   $(sudo -n ufw status 2>/dev/null | head -1 || echo 'run with sudo to see')"
+    echo "Antivirus:  ClamAV $(clamscan --version 2>/dev/null | cut -d/ -f1 | awk '{print $2}'), signatures $(systemctl is-active clamav-freshclam 2>/dev/null)"
+    echo "Guard:      timer $(systemctl is-active orchard-guard.timer 2>/dev/null)"
+    echo "Audit log:  auditd $(systemctl is-active auditd 2>/dev/null)"
+    echo
+    echo "Recent alerts:"
+    if [[ -s "$ALERTS" ]]; then tail -n 10 "$ALERTS" | sed 's/^/  /'; else echo "  none"; fi
+}
+
+cmd_scan() {
+    local target="${1:-$HOME}"
+    echo "Scanning $target (this can take a while)..."
+    mkdir -p "$HOME/.local/share/orchard"
+    clamscan -r -i --exclude-dir='^/proc|^/sys|^/dev' "$target" | tee "$HOME/.local/share/orchard/last-scan.txt"
+    if grep -q "Infected files: [1-9]" "$HOME/.local/share/orchard/last-scan.txt"; then
+        notify-send -u critical -i security-low "Orchard Guard" "Malware found in $target. See ~/.local/share/orchard/last-scan.txt" 2>/dev/null
+        return 1
+    fi
+}
+
+cmd_notify() {
+    # Runs in the desktop session; shows a notification for each new alert.
+    touch "$HOME/.config/orchard/.guard-seen" 2>/dev/null
+    while [[ ! -f "$ALERTS" ]]; do sleep 30; done
+    tail -n 0 -F "$ALERTS" 2>/dev/null | while read -r line; do
+        urg=normal; [[ "$line" == *"[HIGH]"* ]] && urg=critical
+        notify-send -u "$urg" -i security-medium "Orchard Guard" "${line#* }"
+    done
+}
+
+sub="${1:-status}"; shift || true
+case "$sub" in
+    check) cmd_check ;;
+    status) cmd_status ;;
+    status-gui) cmd_status | zenity --text-info --title="Orchard Guard" --width=640 --height=420 2>/dev/null ;;
+    ports) echo "PROTO ADDRESS PROGRAM"; listening ;;
+    scan) cmd_scan "$@" ;;
+    baseline) need_root baseline; mkdir -p "$STATE"; listening > "$STATE/ports.baseline"; : > "$STATE/ports.alerted"; echo "Current ports accepted as normal." ;;
+    log) cat "$ALERTS" 2>/dev/null || echo "no alerts" ;;
+    notify) cmd_notify ;;
+    help|-h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *) echo "unknown command: $sub" >&2; exit 2 ;;
+esac

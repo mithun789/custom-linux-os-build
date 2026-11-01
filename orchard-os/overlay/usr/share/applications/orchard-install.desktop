@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install Orchard OS
+Comment=Install Orchard OS on this computer
+Exec=orchard-installer-launch
+Icon=orchard-logo
+Categories=System;
+Terminal=false

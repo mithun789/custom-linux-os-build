@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# Orchard AI: private, local AI models powered by Ollama.
+#
+#   orchard-ai setup              install the Ollama runtime (needs internet, sets up NVIDIA/AMD GPU)
+#   orchard-ai models             list recommended and installed models
+#   orchard-ai recommend          pick a model that fits this PC (RAM / GPU)
+#   orchard-ai pull hf.co/USER/REPO[:QUANT]   any GGUF model from Hugging Face
+#   orchard-ai bench [MODEL]      measure speed (tokens per second)
+#   orchard-ai agent ...          AI agent that codes and runs commands (orchard-agent)
+#   orchard-ai pull MODEL         download a model
+#   orchard-ai rm MODEL           delete a model
+#   orchard-ai use MODEL          set the default model
+#   orchard-ai ask "question"     one-shot answer
+#   orchard-ai chat               interactive chat in the terminal
+#   orchard-ai do "task"          suggest a shell command, run it after you confirm
+#   orchard-ai gui                graphical menu
+#   orchard-ai spotlight          "Ask AI" search bar (Super+A)
+#
+# The commands 'ai' and 'ai-models' are kept as shortcuts.
+set -euo pipefail
+
+CONF_DIR="$HOME/.config/orchard"
+CONF="$CONF_DIR/ai-model"
+API="${OLLAMA_HOST:-http://127.0.0.1:11434}"
+OLLAMA_URL="https://ollama.com/download/ollama-linux-amd64.tgz"
+
+# name|download|min RAM|description   (tools = works with Orchard Agent)
+RECOMMENDED="qwen3:4b|2.5 GB|8 GB|Best all-rounder for 8 GB PCs, tools, thinks step by step
+qwen2.5:3b|1.9 GB|6 GB|Fast assistant with reliable tool use (agent default)
+qwen2.5-coder:7b|4.7 GB|12 GB|Coding specialist, tools
+llama3.2:3b|2.0 GB|6 GB|Meta Llama 3.2, tools, good chat
+llama3.2:1b|1.3 GB|4 GB|Very fast on any PC
+phi4-mini|2.5 GB|8 GB|Microsoft Phi-4 mini, reasoning and tools
+gemma3:4b|3.3 GB|8 GB|Google Gemma 3, understands images
+deepseek-r1:7b|4.7 GB|12 GB|Deep reasoning (slower)
+qwen3:8b|5.2 GB|16 GB|Stronger answers, needs 16 GB or a GPU
+mistral:7b|4.1 GB|12 GB|Mistral 7B, tools
+dolphin-mistral|4.1 GB|12 GB|Uncensored Mistral 7B fine-tune"
+
+die() { echo "orchard-ai: $*" >&2; exit 1; }
+have_ollama() { command -v ollama >/dev/null 2>&1; }
+default_model() { cat "$CONF" 2>/dev/null || echo "qwen2.5:3b"; }
+
+server_up() { curl -fsS "$API/api/version" >/dev/null 2>&1; }
+ensure_server() {
+    have_ollama || die "Ollama is not installed. Run: orchard-ai setup"
+    server_up && return 0
+    if systemctl list-unit-files ollama.service >/dev/null 2>&1; then
+        sudo systemctl start ollama 2>/dev/null || true
+    fi
+    for _ in $(seq 1 20); do server_up && return 0; sleep 0.5; done
+    # Fall back to a user-level server.
+    (ollama serve >/dev/null 2>&1 &)
+    for _ in $(seq 1 20); do server_up && return 0; sleep 0.5; done
+    die "could not start the Ollama server"
+}
+
+cmd_setup() {
+    if have_ollama; then echo "Ollama already installed: $(ollama --version 2>/dev/null | tail -1)"; return 0; fi
+    [[ $EUID -eq 0 ]] || exec sudo "$0" setup
+    echo "==> Installing Ollama (official installer, adds NVIDIA CUDA / AMD ROCm support when a GPU is found)"
+    if curl -fsSL https://ollama.com/install.sh -o /tmp/ollama-install.sh; then
+        sh /tmp/ollama-install.sh && rm -f /tmp/ollama-install.sh
+    else
+        echo "==> Installer unreachable, trying the release archive"
+        tmp="$(mktemp -d)"
+        curl -fL --progress-bar "$OLLAMA_URL" -o "$tmp/ollama.tgz"
+        tar -xzf "$tmp/ollama.tgz" -C /usr/local
+        rm -rf "$tmp"
+        id ollama >/dev/null 2>&1 || useradd -r -s /bin/false -U -m -d /usr/share/ollama ollama
+        cat > /etc/systemd/system/ollama.service <<'UNIT'
+[Unit]
+Description=Ollama local AI service
+After=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+Environment="OLLAMA_HOST=127.0.0.1:11434"
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+        systemctl daemon-reload
+        systemctl enable --now ollama
+    fi
+    # Keep the API on this computer only.
+    mkdir -p /etc/systemd/system/ollama.service.d
+    printf '[Service]\nEnvironment="OLLAMA_HOST=127.0.0.1:11434"\nEnvironment="OLLAMA_KEEP_ALIVE=10m"\n' \
+        > /etc/systemd/system/ollama.service.d/orchard.conf
+    systemctl daemon-reload; systemctl restart ollama
+    echo "==> Done. Suggested model for this PC: $(recommend_model)"
+    echo "    Download it with: orchard-ai pull $(recommend_model)"
+}
+
+ram_gb() { awk '/MemTotal/{printf "%d", $2/1024/1024 + 0.5}' /proc/meminfo; }
+vram_gb() { command -v nvidia-smi >/dev/null && nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | awk '{s+=$1} END{printf "%d", s/1024}' || echo 0; }
+
+recommend_model() {
+    local ram vram
+    ram=$(ram_gb); vram=$(vram_gb)
+    if [[ ${vram:-0} -ge 10 || $ram -ge 16 ]]; then echo "qwen3:8b"
+    elif [[ ${vram:-0} -ge 6 || $ram -ge 8 ]]; then echo "qwen3:4b"
+    elif [[ $ram -ge 6 ]]; then echo "qwen2.5:3b"
+    else echo "llama3.2:1b"; fi
+}
+
+cmd_recommend() {
+    echo "RAM: $(ram_gb) GB   NVIDIA VRAM: $(vram_gb) GB"
+    echo "Recommended: $(recommend_model)"
+    echo "Install with: orchard-ai pull $(recommend_model)"
+}
+
+cmd_bench() {
+    ensure_server
+    local m="${1:-$(default_model)}"
+    echo "Benchmarking $m ..."
+    curl -fsS "$API/api/generate" -d "{\"model\":\"$m\",\"prompt\":\"Write three sentences about apple trees.\",\"stream\":false}" \
+        | python3 -c 'import json,sys; d=json.load(sys.stdin); n=d.get("eval_count",0); t=d.get("eval_duration",1)/1e9; print(f"{n} tokens in {t:.1f}s = {n/t:.1f} tokens/s"); print("load time: %.1fs" % (d.get("load_duration",0)/1e9))'
+}
+
+cmd_models() {
+    echo "Recommended models:"
+    printf "  %-18s %-9s %-8s %s\n" MODEL DOWNLOAD RAM DESCRIPTION
+    while IFS='|' read -r name size ram desc; do
+        printf "  %-18s %-9s %-8s %s\n" "$name" "$size" "$ram" "$desc"
+    done <<< "$RECOMMENDED"
+    echo "  Any Hugging Face GGUF model: orchard-ai pull hf.co/USER/REPO:Q4_K_M"
+    echo
+    if have_ollama && server_up; then
+        echo "Installed models:"
+        ollama list | sed 's/^/  /'
+    else
+        echo "Ollama is not running. Run: orchard-ai setup"
+    fi
+    echo
+    echo "Default model: $(default_model)"
+}
+
+cmd_pull() { [[ -n "${1:-}" ]] || die "usage: orchard-ai pull MODEL"; ensure_server; ollama pull "$1"; [[ -f "$CONF" ]] || cmd_use "$1"; }
+cmd_rm() { [[ -n "${1:-}" ]] || die "usage: orchard-ai rm MODEL"; ensure_server; ollama rm "$1"; }
+cmd_use() {
+    [[ -n "${1:-}" ]] || die "usage: orchard-ai use MODEL"
+    mkdir -p "$CONF_DIR"; echo "$1" > "$CONF"
+    # The agent follows the same local model.
+    python3 /usr/lib/orchard/orchard_agent.py use ollama "$1" >/dev/null 2>&1 || true
+    echo "Default model: $1"
+}
+
+cmd_ask() {
+    [[ $# -gt 0 ]] || die "usage: orchard-ai ask \"question\""
+    ensure_server
+    ollama run "$(default_model)" "$*"
+}
+
+cmd_chat() { ensure_server; echo "Chatting with $(default_model). Type /bye to quit."; ollama run "$(default_model)"; }
+
+cmd_do() {
+    [[ $# -gt 0 ]] || die "usage: orchard-ai do \"task\""
+    ensure_server
+    local prompt suggestion
+    prompt="You are a Linux shell assistant on Orchard OS (Ubuntu 24.04 based, XFCE desktop, apt package manager). \
+Reply with exactly one bash command that does the task, with no explanation and no code fences. Task: $*"
+    suggestion="$(ollama run "$(default_model)" "$prompt" | sed -e 's/^```[a-z]*//' -e 's/```$//' | grep -v '^\s*$' | head -1)"
+    [[ -n "$suggestion" ]] || die "the model gave no command"
+    echo "Suggested command:"
+    echo "  $suggestion"
+    read -r -p "Run it? [y/N] " ans
+    [[ "$ans" =~ ^[Yy]$ ]] && bash -c "$suggestion"
+}
+
+cmd_gui() {
+    command -v zenity >/dev/null || die "zenity missing"
+    if ! have_ollama; then
+        zenity --question --title="Orchard AI" --width=380 \
+            --text="Orchard AI runs language models privately on this computer.\n\nInstall the Ollama runtime now? (about 1.5 GB download)" || exit 0
+        exec xfce4-terminal --hold -T "Orchard AI setup" -x bash -c "orchard-ai setup && orchard-ai gui"
+    fi
+    ensure_server
+    local rows=()
+    while IFS='|' read -r name size ram desc; do rows+=("$name" "$size" "$ram" "$desc"); done <<< "$RECOMMENDED"
+    choice="$(zenity --list --title="Orchard AI" --width=640 --height=420 \
+        --text="Default model: $(default_model)   Suggested for this PC: $(recommend_model)\nPick a model to download and use, or Cancel to open a chat." \
+        --column=Model --column=Download --column=RAM --column=Description "${rows[@]}" 2>/dev/null || true)"
+    if [[ -n "$choice" ]]; then
+        exec xfce4-terminal --hold -T "Orchard AI" -x bash -c "orchard-ai pull '$choice' && orchard-ai use '$choice' && orchard-ai chat"
+    fi
+    exec xfce4-terminal -T "Orchard AI chat" -x orchard-ai chat
+}
+
+cmd_spotlight() {
+    local theme="$HOME/.config/rofi/orchard-colors.rasi" q answer
+    [[ -f "$theme" ]] || theme=/usr/share/orchard/rofi/spotlight.rasi
+    if ! have_ollama; then exec "$0" gui; fi
+    q="$(rofi -dmenu -p "Ask AI" -l 0 -theme "$theme" \
+        -theme-str 'entry { placeholder: "Ask anything. Runs privately on this computer."; }' </dev/null)" || exit 0
+    [[ -n "$q" ]] || exit 0
+    notify-send -i applications-science "Orchard AI" "Thinking about: $q" 2>/dev/null || true
+    ensure_server
+    answer="$(ollama run "$(default_model)" "$q" 2>&1)"
+    printf '%s\n\n%s\n' "Q: $q" "$answer" | zenity --text-info --title="Orchard AI" \
+        --width=640 --height=480 --font="Inter 11" 2>/dev/null
+}
+
+sub="${1:-help}"; shift || true
+case "$sub" in
+    setup) cmd_setup ;;
+    models|list) cmd_models ;;
+    pull|download) cmd_pull "$@" ;;
+    rm|delete) cmd_rm "$@" ;;
+    use|default) cmd_use "$@" ;;
+    ask|query) cmd_ask "$@" ;;
+    chat) cmd_chat ;;
+    do) cmd_do "$@" ;;
+    gui) cmd_gui ;;
+    recommend) cmd_recommend ;;
+    bench) cmd_bench "$@" ;;
+    agent) exec orchard-agent "$@" ;;
+    spotlight) cmd_spotlight ;;
+    help|-h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *) cmd_ask "$sub" "$@" ;;
+esac

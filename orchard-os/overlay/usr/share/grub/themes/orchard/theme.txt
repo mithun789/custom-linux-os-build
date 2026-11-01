@@ -1,0 +1,44 @@
+# Orchard OS GRUB theme
+title-text: ""
+desktop-image: "background.png"
+desktop-color: "#0E1626"
+terminal-font: "Unifont Regular 16"
+terminal-left: "10%"
+terminal-top: "20%"
+terminal-width: "80%"
+terminal-height: "60%"
+
++ label {
+    top = 22%
+    left = 0
+    width = 100%
+    align = "center"
+    text = "Orchard OS"
+    color = "#FFFFFF"
+    font = "Unifont Regular 16"
+}
+
++ boot_menu {
+    left = 25%
+    width = 50%
+    top = 32%
+    height = 44%
+    item_font = "Unifont Regular 16"
+    item_color = "#B8C4D2"
+    selected_item_color = "#7EDC9B"
+    item_height = 30
+    item_padding = 10
+    item_spacing = 6
+    scrollbar = false
+}
+
++ label {
+    id = "__timeout__"
+    top = 82%
+    left = 0
+    width = 100%
+    align = "center"
+    text = "Starting in %d seconds"
+    color = "#8A9AB0"
+    font = "Unifont Regular 16"
+}

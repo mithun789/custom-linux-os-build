@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Clean
+Comment=Free disk space
+Exec=xfce4-terminal --hold -T "Orchard Clean" -x orchard-clean
+Icon=user-trash-full
+Categories=System;Utility;

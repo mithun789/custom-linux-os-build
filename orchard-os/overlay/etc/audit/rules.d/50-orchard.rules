@@ -1,0 +1,11 @@
+# Orchard OS audit rules: record changes to accounts, privileges and services.
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/sudoers -p wa -k privilege
+-w /etc/sudoers.d/ -p wa -k privilege
+-w /etc/ssh/sshd_config -p wa -k ssh
+-w /etc/systemd/system/ -p wa -k services
+-w /etc/crontab -p wa -k cron
+-w /etc/cron.d/ -p wa -k cron
+-w /usr/bin/sudo -p x -k sudo

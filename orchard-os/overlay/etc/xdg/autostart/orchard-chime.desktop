@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Login Chime
+Exec=orchard-chime
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-GNOME-Autostart-Delay=1

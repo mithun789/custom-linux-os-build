@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Orchard driver manager.
+#
+#   orchard-drivers              show graphics hardware and recommended drivers
+#   orchard-drivers install      install recommended drivers (NVIDIA, Wi-Fi, ...)
+#   orchard-drivers cuda         install NVIDIA driver plus the CUDA toolkit
+#   orchard-drivers check        notify when a proprietary driver is recommended (login)
+#   orchard-drivers --gui        same as 'install' with dialogs
+#
+# Built in: Intel, AMD and Nouveau graphics (Mesa, VA-API, Vulkan), VirtualBox,
+# VMware, QEMU/KVM (virtio, SPICE) and Hyper-V guest support.
+set -u
+
+gpu_list() { lspci -nn | grep -Ei 'vga|3d|display' | sed 's/^[0-9a-f:.]* //'; }
+has_nvidia() { lspci -n | grep -Eq ' 0300: 10de:| 0302: 10de:'; }
+virt() { systemd-detect-virt 2>/dev/null || echo none; }
+
+show() {
+    echo "Graphics:"; gpu_list | sed 's/^/  /'
+    echo "Virtualization: $(virt)"
+    echo "Kernel driver in use:"
+    lspci -k | grep -A3 -Ei 'vga|3d' | grep 'in use' | sed 's/^\s*/  /'
+    if command -v nvidia-smi >/dev/null; then echo; nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv; fi
+    echo; echo "Recommended drivers:"
+    ubuntu-drivers devices 2>/dev/null | grep -E 'driver|model' | sed 's/^/  /' || echo "  none needed"
+}
+
+install_drivers() {
+    [[ $EUID -eq 0 ]] || exec sudo "$0" install
+    apt-get update
+    ubuntu-drivers install
+    echo "Done. Restart the computer to use the new drivers."
+}
+
+install_cuda() {
+    [[ $EUID -eq 0 ]] || exec sudo "$0" cuda
+    has_nvidia || { echo "No NVIDIA GPU found."; exit 1; }
+    apt-get update
+    ubuntu-drivers install
+    DEBIAN_FRONTEND=noninteractive apt-get install -y nvidia-cuda-toolkit
+    echo "Done. Restart, then check with: nvidia-smi && nvcc --version"
+    echo "Ollama uses the GPU automatically once the driver is loaded."
+}
+
+case "${1:-show}" in
+    show) show ;;
+    install) install_drivers ;;
+    cuda) install_cuda ;;
+    check)
+        has_nvidia && ! lsmod | grep -q '^nvidia ' && \
+            notify-send -i video-display "NVIDIA graphics found" "Install the NVIDIA driver for full speed and CUDA AI acceleration: open Welcome > Drivers." 2>/dev/null
+        exit 0 ;;
+    --gui)
+        info="$(show 2>&1)"
+        if has_nvidia; then
+            choice=$(zenity --list --radiolist --title="Orchard Drivers" --width=620 --height=420 \
+                --text="$info" --column="" --column=Action TRUE "Install NVIDIA driver" FALSE "Install NVIDIA driver + CUDA toolkit" 2>/dev/null) || exit 0
+            [[ "$choice" == *CUDA* ]] && exec xfce4-terminal --hold -T Drivers -x sudo orchard-drivers cuda
+            exec xfce4-terminal --hold -T Drivers -x sudo orchard-drivers install
+        fi
+        zenity --info --title="Orchard Drivers" --width=560 --text="$info\n\nNo extra drivers needed. Graphics run on the built-in open drivers." 2>/dev/null ;;
+    *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

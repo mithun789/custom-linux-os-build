@@ -1,0 +1,4 @@
+# Orchard OS ships deb packages and Flatpak. Snap stays out.
+Package: snapd
+Pin: release *
+Pin-Priority: -10

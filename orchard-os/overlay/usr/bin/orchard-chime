@@ -1,0 +1,8 @@
+#!/bin/sh
+# Play the login chime once per login. Disable: touch ~/.config/orchard/no-chime
+[ -f "$HOME/.config/orchard/no-chime" ] && exit 0
+f=/usr/share/sounds/orchard/login.wav
+command -v pw-play >/dev/null && exec pw-play "$f" 2>/dev/null
+command -v paplay >/dev/null && exec paplay "$f" 2>/dev/null
+command -v aplay >/dev/null && exec aplay -q "$f" 2>/dev/null
+exit 0

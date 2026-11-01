@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Spotlight-style launcher (bound to Super+Space).
+theme="$HOME/.config/rofi/orchard-colors.rasi"
+[[ -f "$theme" ]] || theme=/usr/share/orchard/rofi/spotlight.rasi
+pkill -x rofi && exit 0
+exec rofi -show drun -theme "$theme" "$@"

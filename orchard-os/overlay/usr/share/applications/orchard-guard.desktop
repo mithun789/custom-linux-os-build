@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Guard
+Comment=Security status, antivirus and alerts
+Exec=orchard-guard status-gui
+Icon=security-high
+Categories=System;Security;

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Orchard Voice
+Comment=Talk to your computer (Super+V)
+Exec=orchard-voice ptt
+Icon=audio-input-microphone
+Categories=Utility;Accessibility;

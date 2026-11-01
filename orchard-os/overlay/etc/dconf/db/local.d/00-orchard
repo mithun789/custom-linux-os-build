@@ -1,0 +1,28 @@
+# Orchard OS defaults for GSettings-based apps and the Plank dock.
+
+[org/gnome/desktop/interface]
+gtk-theme='WhiteSur-Light'
+icon-theme='WhiteSur'
+cursor-theme='WhiteSur-cursors'
+cursor-size=24
+font-name='Inter 10'
+document-font-name='Inter 10'
+monospace-font-name='JetBrains Mono 10'
+color-scheme='prefer-light'
+
+[org/gnome/desktop/wm/preferences]
+button-layout='close,minimize,maximize:'
+
+[net/launchpad/plank/docks/dock1]
+theme='Orchard'
+position='bottom'
+alignment='center'
+icon-size=48
+zoom-enabled=false
+zoom-percent=150
+hide-mode='window-dodge'
+offset=0
+items-alignment='center'
+show-dock-item=false
+lock-items=false
+dock-items=['orchard-install.dockitem', 'thunar.dockitem', 'epiphany.dockitem', 'terminal.dockitem', 'mousepad.dockitem', 'software.dockitem', 'rhythmbox.dockitem', 'celluloid.dockitem', 'orchard-ai.dockitem', 'orchard-agent.dockitem', 'settings.dockitem']

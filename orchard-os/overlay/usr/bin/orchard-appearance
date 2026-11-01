@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# Switch Orchard OS appearance.
+# Usage:
+#   orchard-appearance light|dark|toggle|status
+#   orchard-appearance transparency on|off   ("Reduce transparency" = off)
+set -u
+
+state="$HOME/.config/orchard"
+mkdir -p "$state"
+mode="${1:-status}"
+current() { xfconf-query -c xsettings -p /Net/ThemeName 2>/dev/null | grep -qi dark && echo dark || echo light; }
+
+if [[ "$mode" == transparency ]]; then
+    case "${2:-}" in
+        off) touch "$state/reduce-transparency" ;;
+        on) rm -f "$state/reduce-transparency" ;;
+        *) echo "usage: orchard-appearance transparency on|off" >&2; exit 2 ;;
+    esac
+    "$0" "$(current)"
+    pkill -x picom 2>/dev/null
+    (setsid orchard-compositor >/dev/null 2>&1 &)
+    exit 0
+fi
+
+case "$mode" in
+    status) echo "$(current), transparency $([[ -f $state/reduce-transparency ]] && echo off || echo on)"; exit 0 ;;
+    toggle) [[ "$(current)" == dark ]] && mode=light || mode=dark ;;
+    light|dark) ;;
+    *) echo "usage: orchard-appearance light|dark|toggle|status|transparency on|off" >&2; exit 2 ;;
+esac
+
+solid=""
+[[ -f "$state/reduce-transparency" ]] && solid="-solid"
+
+if [[ "$mode" == dark ]]; then
+    gtk=WhiteSur-Dark$solid; icons=WhiteSur-dark; scheme=prefer-dark
+    panel=(0.118 0.133 0.165 0.55)
+    wall=/usr/share/backgrounds/orchard/orchard-dark.png
+    plank_fill_a="40;;46;;58;;150"; plank_fill_b="32;;37;;48;;150"; plank_stroke="255;;255;;255;;40"
+else
+    gtk=WhiteSur-Light$solid; icons=WhiteSur; scheme=prefer-light
+    panel=(0.965 0.973 0.984 0.62)
+    wall=/usr/share/backgrounds/orchard/orchard-light.png
+    plank_fill_a="250;;251;;253;;135"; plank_fill_b="240;;243;;247;;135"; plank_stroke="255;;255;;255;;70"
+fi
+
+xq() { xfconf-query -c "$1" -p "$2" --create -t "$3" -s "$4" 2>/dev/null; }
+
+xq xsettings /Net/ThemeName string "$gtk"
+xq xsettings /Net/IconThemeName string "$icons"
+xq xfwm4 /general/theme string "$gtk"
+xq xfce4-panel /panels/dark-mode bool "$([[ $mode == dark ]] && echo true || echo false)"
+
+# Menu bar material. Reduce transparency makes it opaque.
+[[ -n "$solid" ]] && panel[3]=1.0
+xfconf-query -c xfce4-panel -p /panels/panel-1/background-style --create -t uint -s 1 2>/dev/null
+xfconf-query -c xfce4-panel -p /panels/panel-1/background-rgba --create --force-array \
+    -t double -s "${panel[0]}" -t double -s "${panel[1]}" -t double -s "${panel[2]}" -t double -s "${panel[3]}" 2>/dev/null
+
+if command -v gsettings >/dev/null; then
+    gsettings set org.gnome.desktop.interface gtk-theme "$gtk" 2>/dev/null
+    gsettings set org.gnome.desktop.interface icon-theme "$icons" 2>/dev/null
+    gsettings set org.gnome.desktop.interface color-scheme "$scheme" 2>/dev/null
+fi
+
+# libadwaita / GTK4 apps read ~/.config/gtk-4.0.
+g4="$HOME/.config/gtk-4.0"
+mkdir -p "$g4"
+for f in gtk.css gtk-dark.css assets; do
+    src="/usr/share/themes/$gtk/gtk-4.0/$f"
+    [[ -e "$src" ]] && ln -sfn "$src" "$g4/$f"
+done
+
+# Wallpaper on every monitor and workspace xfdesktop knows about, plus
+# every connected output (covers the first login, before xfdesktop saved any).
+props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true)"
+if command -v xrandr >/dev/null; then
+    for out in $(xrandr --query 2>/dev/null | awk '/ connected/{print $1}'); do
+        props+=$'\n'"/backdrop/screen0/monitor${out}/workspace0/last-image"
+    done
+fi
+props+=$'\n'"/backdrop/screen0/monitor0/workspace0/last-image"
+while read -r p; do
+    [[ -z "$p" ]] && continue
+    xq xfce4-desktop "$p" string "$wall"
+    xq xfce4-desktop "${p%/last-image}/image-style" int 5
+done <<< "$(sort -u <<< "$props")"
+
+# Dock colors follow the appearance.
+pt="$HOME/.local/share/plank/themes/Orchard"
+mkdir -p "$pt"
+sed -e "s/^FillStartColor=.*/FillStartColor=$plank_fill_a/" \
+    -e "s/^FillEndColor=.*/FillEndColor=$plank_fill_b/" \
+    -e "s/^OuterStrokeColor=.*/OuterStrokeColor=$plank_stroke/" \
+    /usr/share/plank/themes/Orchard/dock.theme > "$pt/dock.theme"
+
+if [[ -n "$solid" ]]; then
+    plank_fill_a="${plank_fill_a%;;*};;250"; plank_fill_b="${plank_fill_b%;;*};;250"
+fi
+# Spotlight colors.
+rc="$HOME/.config/rofi"
+mkdir -p "$rc"
+if [[ $mode == dark ]]; then
+    printf '@import "/usr/share/orchard/rofi/spotlight.rasi"\n* { bg: #1E2430B8; bg-alt: #FFFFFF1A; fg: #E8ECF2; fg-dim: #8C97A8; }\n' > "$rc/orchard-colors.rasi"
+else
+    printf '@import "/usr/share/orchard/rofi/spotlight.rasi"\n' > "$rc/orchard-colors.rasi"
+fi
+
+if [[ -n "$solid" ]]; then
+    echo "* { bg: $([[ $mode == dark ]] && echo '#1E2430' || echo '#F7F8FA'); }" >> "$rc/orchard-colors.rasi"
+fi
+
+echo "$mode" > "$state/appearance"
+echo "Appearance: $mode"
