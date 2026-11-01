@@ -67,14 +67,13 @@ fi
 g3="$HOME/.config/gtk-3.0"
 mkdir -p "$g3"
 if [[ -n "$solid" ]]; then
-    printf '/* Reduce transparency is on */\n.xfce4-panel.background, .xfce4-panel.background label, .xfce4-panel.background button { color: %s; }\n' \
-        "$([[ $mode == dark ]] && echo '#f5f5f7' || echo '#1d1d1f')" > "$g3/gtk.css"
+    printf '/* Reduce transparency is on */\n.xfce4-panel.background, .xfce4-panel.background label, .xfce4-panel.background button { color: @theme_fg_color; }\n' > "$g3/gtk.css"
 else
     {
-        printf '@import url("file:///usr/share/orchard/gtk/glass-%s.css");\n' "$mode"
+        printf '@import url("file:///usr/share/orchard/gtk/glass.css");\n'
         # Without blur (see orchard-compositor) use the more opaque frost material.
         [[ "$(cat "$state/material" 2>/dev/null)" == glass ]] || \
-            printf '@import url("file:///usr/share/orchard/gtk/frost-%s.css");\n' "$mode"
+            printf '@import url("file:///usr/share/orchard/gtk/frost.css");\n'
     } > "$g3/gtk.css"
 fi
 (xfce4-panel -r >/dev/null 2>&1 &)

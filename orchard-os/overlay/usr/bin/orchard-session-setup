@@ -13,6 +13,9 @@ if grep -q 'boot=casper' /proc/cmdline; then
     (sleep 10; pkill -x light-locker; xset s off -dpms) &
     xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled --create -t bool -s false 2>/dev/null
     xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate --create -t bool -s false 2>/dev/null
+    for k in blank-on-ac blank-on-battery dpms-on-ac-sleep dpms-on-ac-off dpms-on-battery-sleep dpms-on-battery-off inactivity-on-ac inactivity-on-battery; do
+        xfconf-query -c xfce4-power-manager -p "/xfce4-power-manager/$k" --create -t uint -s 0 2>/dev/null
+    done
 fi
 
 if [[ "$(cat "$state/setup-version" 2>/dev/null)" != "$VERSION" ]]; then

@@ -205,7 +205,7 @@ def test_live_and_install(iso, work, out, do_install):
             "live-vscode": "test -x /usr/bin/code || { echo 'VS Code missing (vendor repo unreachable at build time?)'; false; }",
             "live-global-menu": "ls /usr/lib/x86_64-linux-gnu/gtk-3.0/modules/ | grep -q appmenu",
             "live-launchpad": "command -v orchard-launchpad && test -f /usr/share/icons/hicolor/scalable/apps/orchard-launchpad.svg",
-            "live-glass-css": "test -f /usr/share/orchard/gtk/glass-light.css -a -f /usr/share/orchard/gtk/frost-light.css",
+            "live-glass-css": "test -f /usr/share/orchard/gtk/glass.css -a -f /usr/share/orchard/gtk/frost.css",
             "live-ollama-deps": "command -v zstd",
             "live-installer-layout": "grep -q partitionLayout /etc/calamares/modules/partition.conf",
             "live-clamav": "clamscan --version",
@@ -224,7 +224,17 @@ def test_live_and_install(iso, work, out, do_install):
         time.sleep(8 * SLOW)
         vm.screenshot(out / "live-desktop-dark.png")
         record("live-appearance-dark", rc == 0)
+        # Apps in both appearances: Files and VS Code over the desktop.
+        vm.run("pkill -f orchard-welcome; true")
+        vm.run(f"({env} thunar ~ >/dev/null 2>&1 &); sleep 2; ({env} code --disable-gpu --no-sandbox --user-data-dir=/tmp/vsc /etc >/dev/null 2>&1 &)")
+        time.sleep(40 * SLOW)
+        vm.run(f"{env} xdotool search --name 'Thunar' windowactivate --sync windowmove 80 70 windowsize 820 520; true")
+        time.sleep(5 * SLOW)
+        vm.screenshot(out / "live-apps-dark.png")
         vm.run(f"{env} orchard-appearance light")
+        time.sleep(12 * SLOW)
+        vm.screenshot(out / "live-apps-light.png")
+        vm.run("pkill -x thunar; pkill -f '/usr/share/code/code'; true")
 
         # Graphical installer starts.
         vm.run(f"(sudo -E env {env} calamares >/tmp/calamares.log 2>&1 &)")
