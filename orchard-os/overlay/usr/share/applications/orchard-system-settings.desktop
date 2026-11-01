@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=System Settings
+Comment=Displays, network, sound, keyboard, appearance and more
+Exec=xfce4-settings-manager
+Icon=preferences-system
+Categories=System;
+Keywords=settings;preferences;control;panel;

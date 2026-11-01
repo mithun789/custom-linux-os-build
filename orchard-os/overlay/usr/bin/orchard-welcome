@@ -120,7 +120,7 @@ class Welcome(Gtk.Window):
              lambda: run(["orchard-appearance", "transparency", "on"])),
             ("user-trash-full-symbolic", "Clean up", "Free disk space in one click.",
              lambda: run(["orchard-clean"], terminal=True)),
-            ("preferences-desktop-symbolic", "Settings", "Displays, network, keyboard and more.",
+            ("preferences-desktop-symbolic", "System Settings", "Displays, network, keyboard and more.",
              lambda: run(["xfce4-settings-manager"])),
             ("system-search-symbolic", "Spotlight", "Press Super+Space to search anything.",
              lambda: run(["orchard-spotlight"])),

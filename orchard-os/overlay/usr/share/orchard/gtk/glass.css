@@ -113,3 +113,15 @@ menu, .menu, .context-menu, popover.background > contents {
     background-color: alpha(@theme_bg_color, 0.94);
     border-radius: 10px;
 }
+
+/* xfdesktop draws its own label shadow through style properties. */
+XfdesktopIconView {
+    -XfdesktopIconView-shadow-x-offset: 0;
+    -XfdesktopIconView-shadow-y-offset: 1;
+    -XfdesktopIconView-shadow-blur-radius: 3;
+    -XfdesktopIconView-shadow-color: rgba(0, 0, 0, 0.85);
+    -XfdesktopIconView-selected-shadow-x-offset: 0;
+    -XfdesktopIconView-selected-shadow-y-offset: 1;
+    -XfdesktopIconView-selected-shadow-blur-radius: 3;
+    -XfdesktopIconView-selected-shadow-color: rgba(0, 0, 0, 0.85);
+}

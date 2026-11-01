@@ -35,6 +35,8 @@ check_ports() {
     if [[ ! -f "$STATE/ports.baseline" ]]; then cp "$now" "$STATE/ports.baseline"; return; fi
     comm -13 "$STATE/ports.baseline" "$now" | while read -r proto addr prog; do
         [[ -z "$proto" ]] && continue
+        # Ports bound to loopback are reachable only from this computer.
+        case "$addr" in 127.*|"[::1]":*|::1:*|localhost:*) continue ;; esac
         grep -qxF "$proto $addr $prog" "$STATE/ports.alerted" 2>/dev/null && continue
         alert MEDIUM ports "new listening port $proto $addr by '$prog' (accept with: sudo orchard-guard baseline)"
         echo "$proto $addr $prog" >> "$STATE/ports.alerted"

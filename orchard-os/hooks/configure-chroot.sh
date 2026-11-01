@@ -172,7 +172,8 @@ fi
 mkdir -p /usr/local/share/applications
 for f in xfce4-taskmanager org.gnome.SystemMonitor gnome-system-monitor-kde xfce4-about \
          org.xfce.ristretto org.xfce.mousepad xfce4-web-browser xfce4-mail-reader galculator \
-         xfce4-file-manager xfce4-terminal-emulator debian-xterm debian-uxterm; do
+         xfce4-file-manager xfce4-terminal-emulator debian-xterm debian-uxterm calamares \
+         xfce-settings-manager; do
     src=/usr/share/applications/$f.desktop
     [[ -f $src ]] || continue
     { grep -v '^NoDisplay=' "$src"; } > "/usr/local/share/applications/$f.desktop"

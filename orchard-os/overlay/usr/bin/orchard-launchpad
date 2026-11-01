@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
-# Launchpad: full-screen grid of all apps (F4, or the Dock).
+# Launchpad: full-screen grid of apps (F4, or the Dock). Settings panels are
+# left out, as on macOS; they live in System Settings.
 pkill -x rofi && exit 0
-exec rofi -show drun -theme /usr/share/orchard/rofi/launchpad.rasi -drun-display-format "{name}" "$@"
+exec rofi -show drun -theme /usr/share/orchard/rofi/launchpad.rasi -drun-display-format "{name}" \
+    -drun-categories "AudioVideo,Audio,Video,Development,Education,Game,Graphics,Network,Office,Science,Utility,System" "$@"

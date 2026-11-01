@@ -55,7 +55,7 @@
         <value type="string" value="orchard-activity-monitor.desktop"/>
         <value type="string" value="orchard-welcome.desktop"/>
         <value type="string" value="orchard-ai.desktop"/>
-        <value type="string" value="xfce-settings-manager.desktop"/>
+        <value type="string" value="orchard-system-settings.desktop"/>
       </property>
     </property>
     <property name="plugin-2" type="string" value="appmenu">
