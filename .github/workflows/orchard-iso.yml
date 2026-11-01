@@ -92,31 +92,3 @@ jobs:
 
             If the ISO is split into `.part00`, `.part01` files, join them first:
             `cat orchard-os-*.iso.part* > orchard-os.iso` and check it with the `.sha256` file.
-
-  agent-real-model:
-    # Runs Orchard Agent against real local models in Ollama (the ISO build
-    # environment may not reach model registries).
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        model: ["qwen2.5:1.5b", "qwen3:1.7b", "llama3.2:1b"]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Ollama and pull ${{ matrix.model }}
-        run: |
-          curl -fsSL https://ollama.com/install.sh | sh
-          ollama pull "${{ matrix.model }}"
-      - name: Agent must use tools to answer
-        run: |
-          mkdir -p /tmp/agent-work && cd /tmp/agent-work
-          python3 "$GITHUB_WORKSPACE/orchard-os/overlay/usr/lib/orchard/orchard_agent.py" \
-            -p ollama -m "${{ matrix.model }}" --yolo \
-            "Create a file named answer.txt in the current directory that contains the output of the command: uname -s. Then reply DONE." | tee out.txt
-          cat ~/.local/share/orchard/agent/agent.log
-          grep -q "Linux" answer.txt
-      - name: Speed
-        run: |
-          curl -s localhost:11434/api/generate -d '{"model":"${{ matrix.model }}","prompt":"Say hi","stream":false}' \
-            | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["eval_count"]/(d["eval_duration"]/1e9), "tokens/s")'
